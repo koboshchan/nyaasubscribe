@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import type { Db, Settings, Subscription } from "./types";
+import type { Db, PendingAsk, Settings, Subscription } from "./types";
 
 const DATA_DIR = process.env.DATA_DIR || "/data";
 const DB_PATH = path.join(DATA_DIR, "db.json");
@@ -29,9 +29,15 @@ export class Store {
     }
     const raw = fs.readFileSync(DB_PATH, "utf-8");
     const parsed = JSON.parse(raw) as Partial<Db>;
+    const rawSubs = (parsed.subscriptions ?? []) as Array<Partial<Subscription>>;
     return {
       settings: { ...defaultSettings(), ...parsed.settings },
-      subscriptions: parsed.subscriptions ?? [],
+      subscriptions: rawSubs.map((sub) => ({
+        ...sub,
+        seenHashes: sub.seenHashes ?? [],
+        downloadedEpisodes: sub.downloadedEpisodes ?? [],
+        pendingAsks: sub.pendingAsks ?? [],
+      })) as Subscription[],
     };
   }
 
@@ -74,6 +80,48 @@ export class Store {
     if (!sub) return;
     if (!sub.seenHashes.includes(infoHash)) {
       sub.seenHashes.push(infoHash);
+      this.persist();
+    }
+  }
+
+  addDownloadedEpisode(id: string, episode: string): void {
+    const sub = this.getSubscription(id);
+    if (!sub) return;
+    if (!sub.downloadedEpisodes.includes(episode)) {
+      sub.downloadedEpisodes.push(episode);
+      this.persist();
+    }
+  }
+
+  hasPendingAsk(id: string, infoHash: string): boolean {
+    const sub = this.getSubscription(id);
+    return sub?.pendingAsks.some((p) => p.infoHash === infoHash) ?? false;
+  }
+
+  addPendingAsk(id: string, ask: PendingAsk): void {
+    const sub = this.getSubscription(id);
+    if (!sub) return;
+    sub.pendingAsks.push(ask);
+    this.persist();
+  }
+
+  getPendingAsk(id: string, torrentId: string): PendingAsk | undefined {
+    return this.getSubscription(id)?.pendingAsks.find((p) => p.torrentId === torrentId);
+  }
+
+  removePendingAsk(id: string, torrentId: string): void {
+    const sub = this.getSubscription(id);
+    if (!sub) return;
+    sub.pendingAsks = sub.pendingAsks.filter((p) => p.torrentId !== torrentId);
+    this.persist();
+  }
+
+  clearPendingAsksForEpisode(id: string, episode: string): void {
+    const sub = this.getSubscription(id);
+    if (!sub) return;
+    const before = sub.pendingAsks.length;
+    sub.pendingAsks = sub.pendingAsks.filter((p) => p.episode !== episode);
+    if (sub.pendingAsks.length !== before) {
       this.persist();
     }
   }

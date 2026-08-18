@@ -12,6 +12,13 @@ export interface Settings {
   pollIntervalMinutes: number;
 }
 
+export interface PendingAsk {
+  torrentId: string;
+  infoHash: string;
+  title: string;
+  episode: string;
+}
+
 export interface Subscription {
   id: string;
   animeName: string;
@@ -19,6 +26,8 @@ export interface Subscription {
   resolution: Resolution;
   createdAt: string;
   seenHashes: string[];
+  downloadedEpisodes: string[];
+  pendingAsks: PendingAsk[];
 }
 
 export interface Db {

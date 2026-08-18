@@ -2,6 +2,7 @@ import type { Conversation } from "@grammyjs/conversations";
 import type { BotContext } from "../context";
 import type { Store } from "../../store/db";
 import type { Provider, Resolution } from "../../nyaa/types";
+import type { PendingAsk } from "../../store/types";
 import { fetchProviderFeed } from "../../nyaa/rss";
 import { matchesSubscription } from "../../nyaa/titleParser";
 import { providerKeyboard, resolutionKeyboard, backToMainKeyboard } from "../keyboards";
@@ -55,6 +56,8 @@ export function addSubscriptionConversation(store: Store) {
       resolution,
       createdAt: new Date().toISOString(),
       seenHashes: [] as string[],
+      downloadedEpisodes: [] as string[],
+      pendingAsks: [] as PendingAsk[],
     };
 
     await conversation.external(() => store.addSubscription(subscription));

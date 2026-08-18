@@ -50,3 +50,9 @@ export function settingsKeyboard(): InlineKeyboard {
 export function backToMainKeyboard(): InlineKeyboard {
   return new InlineKeyboard().text("Back", "menu:main");
 }
+
+export function episodeAskKeyboard(subId: string, torrentId: string): InlineKeyboard {
+  return new InlineKeyboard()
+    .text("Download this release", `epdl:${subId}:${torrentId}`)
+    .text("Skip", `epskip:${subId}:${torrentId}`);
+}

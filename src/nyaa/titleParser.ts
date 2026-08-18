@@ -19,6 +19,12 @@ export function parseReleaseTitle(provider: Provider, title: string): ParsedRele
   return { show: show.trim(), episode, resolution: resolution as Resolution };
 }
 
+// Erai-raws often dual-releases the same episode/resolution as both a WEB-DL
+// (preferred, usually posted first) and a WEBRip (fallback) encode.
+export function isWebRip(title: string): boolean {
+  return /web-?rip/i.test(title);
+}
+
 export function matchesSubscription(
   provider: Provider,
   title: string,
