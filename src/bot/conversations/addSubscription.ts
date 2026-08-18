@@ -32,6 +32,22 @@ export function addSubscriptionConversation(store: Store) {
     const resolution = resolutionCtx.callbackQuery.data.split(":")[1] as Resolution;
     await resolutionCtx.answerCallbackQuery();
 
+    const alreadySubscribed = store
+      .listSubscriptions()
+      .some(
+        (sub) =>
+          sub.provider === provider &&
+          sub.resolution === resolution &&
+          sub.animeName.toLowerCase() === animeName.toLowerCase(),
+      );
+    if (alreadySubscribed) {
+      await ctx.reply(
+        `You're already subscribed to "${animeName}" (${provider}, ${resolution}).`,
+        { reply_markup: backToMainKeyboard() },
+      );
+      return;
+    }
+
     const subscription = {
       id: crypto.randomUUID(),
       animeName,
