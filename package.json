@@ -1,0 +1,22 @@
+{
+  "name": "nyaasubscribe",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --minify --platform=node --target=node20 --format=cjs --outfile=dist/bot.js",
+    "typecheck": "tsc --noEmit",
+    "dev": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@grammyjs/conversations": "^1.2.0",
+    "grammy": "^1.21.1",
+    "rss-parser": "^3.13.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "esbuild": "^0.20.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.4.0"
+  }
+}
