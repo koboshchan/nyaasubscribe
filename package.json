@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "esbuild src/index.ts --bundle --minify --platform=node --target=node20 --format=cjs --outfile=dist/bot.js",
+    "build": "esbuild src/index.ts --bundle --minify-whitespace --minify-syntax --platform=node --target=node20 --format=cjs --outfile=dist/bot.js",
     "typecheck": "tsc --noEmit",
     "dev": "tsx src/index.ts"
   },
