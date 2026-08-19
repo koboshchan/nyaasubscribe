@@ -4,7 +4,7 @@ import type { Store } from "../../store/db";
 import type { Provider, Resolution } from "../../nyaa/types";
 import type { PendingAsk } from "../../store/types";
 import { fetchProviderFeed } from "../../nyaa/rss";
-import { matchesSubscription } from "../../nyaa/titleParser";
+import { matchesSubscription, parseReleaseTitle } from "../../nyaa/titleParser";
 import { providerKeyboard, resolutionKeyboard, backToMainKeyboard } from "../keyboards";
 
 export function addSubscriptionConversation(store: Store) {
@@ -72,6 +72,15 @@ export function addSubscriptionConversation(store: Store) {
         (item) => item.trusted && matchesSubscription(provider, item.title, animeName, resolution),
       );
       if (matches.length > 0) {
+        await conversation.external(() => {
+          for (const item of matches) {
+            store.markSeen(subscription.id, item.infoHash);
+            const parsed = parseReleaseTitle(provider, item.title);
+            if (parsed) {
+              store.addDownloadedEpisode(subscription.id, parsed.episode);
+            }
+          }
+        });
         await ctx.reply(
           `Found ${matches.length} existing matching release(s). Those will not be downloaded automatically; only new episodes going forward will be.`,
           { reply_markup: backToMainKeyboard() },
