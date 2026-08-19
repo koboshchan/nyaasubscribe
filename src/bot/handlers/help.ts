@@ -9,7 +9,7 @@ const HELP_TEXT = [
   "/settings - configure the downloader and poll interval",
   "/help - this message",
   "",
-  "How it works: add a subscription with the exact release title (for example Mushoku Tensei S3), pick a provider (SubsPlease or Erai-raws) and a resolution (480p, 720p, or 1080p). The bot polls nyaa.si in the background and automatically sends new matching episodes to your configured downloader.",
+  "How it works: add a subscription with the exact release title (for example Mushoku Tensei S3), pick a provider (SubsPlease, Erai-raws, or Tsundere-Raws) and a resolution (480p, 720p, or 1080p). The bot polls nyaa.si in the background and automatically sends new matching episodes to your configured downloader.",
 ].join("\n");
 
 export function registerHelpHandlers(bot: Bot<BotContext>): void {

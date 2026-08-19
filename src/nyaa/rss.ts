@@ -22,12 +22,16 @@ const parser: Parser<Record<string, never>, NyaaFeedFields> = new Parser({
 const PROVIDER_USER: Record<Provider, string> = {
   subsplease: "subsplease",
   "erai-raws": "erai-raws",
+  "tsundere-raws": "Tsundere-Raws",
 };
 
-// Category 1_2 = Anime - English-translated, where both SubsPlease and Erai-raws publish.
+// Scoped to a single uploader account (u=), so the uploader's identity is
+// the trust signal, not the nyaa "trusted" badge or a fixed category - some
+// providers (e.g. Tsundere-Raws) publish outside the English-translated
+// category.
 export function feedUrl(provider: Provider, animeName: string): string {
   const user = PROVIDER_USER[provider];
-  return `https://nyaa.si/?page=rss&u=${user}&q=${encodeURIComponent(animeName)}&c=1_2`;
+  return `https://nyaa.si/?page=rss&u=${encodeURIComponent(user)}&q=${encodeURIComponent(animeName)}`;
 }
 
 export async function fetchProviderFeed(provider: Provider, animeName: string): Promise<NyaaItem[]> {

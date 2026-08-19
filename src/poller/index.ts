@@ -33,7 +33,6 @@ export function startPoller(bot: Bot<BotContext>, store: Store, adminId: number)
           const items = await fetchProviderFeed(sub.provider, sub.animeName);
           const candidates = items.filter(
             (item) =>
-              item.trusted &&
               !sub.seenHashes.includes(item.infoHash) &&
               matchesSubscription(sub.provider, item.title, sub.animeName, sub.resolution),
           );

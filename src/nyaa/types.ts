@@ -1,4 +1,4 @@
-export type Provider = "subsplease" | "erai-raws";
+export type Provider = "subsplease" | "erai-raws" | "tsundere-raws";
 export type Resolution = "480p" | "720p" | "1080p";
 
 export interface NyaaItem {

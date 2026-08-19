@@ -16,7 +16,9 @@ export function providerKeyboard(): InlineKeyboard {
   return new InlineKeyboard()
     .text("SubsPlease", "provider:subsplease")
     .row()
-    .text("Erai-raws", "provider:erai-raws");
+    .text("Erai-raws", "provider:erai-raws")
+    .row()
+    .text("Tsundere-Raws", "provider:tsundere-raws");
 }
 
 export function resolutionKeyboard(): InlineKeyboard {

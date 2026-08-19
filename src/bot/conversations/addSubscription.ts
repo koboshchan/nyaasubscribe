@@ -69,7 +69,7 @@ export function addSubscriptionConversation(store: Store) {
     try {
       const items = await conversation.external(() => fetchProviderFeed(provider, animeName));
       const matches = items.filter(
-        (item) => item.trusted && matchesSubscription(provider, item.title, animeName, resolution),
+        (item) => matchesSubscription(provider, item.title, animeName, resolution),
       );
       if (matches.length > 0) {
         await conversation.external(() => {
