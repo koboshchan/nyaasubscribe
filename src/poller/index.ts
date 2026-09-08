@@ -4,9 +4,16 @@ import type { Store } from "../store/db";
 import { fetchProviderFeed } from "../nyaa/search";
 import { matchesSubscription, parseReleaseTitle, isWebRip } from "../nyaa/titleParser";
 import { DownloaderClient } from "../downloader/client";
-import { episodeAskKeyboard } from "../bot/keyboards";
-import type { DownloaderConfig } from "../store/types";
+import { episodeAskKeyboard, bulkAskKeyboard } from "../bot/keyboards";
+import { sendChunkedText } from "../util/chunkedText";
+import type { DownloaderConfig, Subscription } from "../store/types";
 import type { NyaaItem } from "../nyaa/types";
+
+// If more matches show up in a single poll than this, it's more likely a
+// backlog just becoming visible (e.g. a subscription that sat unpolled, or a
+// data-source change that surfaces older releases) than genuinely new
+// episodes airing at once - confirm before downloading instead of assuming.
+const BULK_CATCH_UP_THRESHOLD = 3;
 
 export function startPoller(bot: Bot<BotContext>, store: Store, adminId: number): void {
   let running = false;
@@ -14,6 +21,17 @@ export function startPoller(bot: Bot<BotContext>, store: Store, adminId: number)
   async function downloadItem(client: DownloaderClient, downloader: DownloaderConfig, item: NyaaItem): Promise<void> {
     const token = await client.getToken();
     await client.addUrl(token, item.magnet, downloader.downloadDirIndex);
+  }
+
+  async function sendBulkCatchUpPrompt(sub: Subscription, batchId: string, items: NyaaItem[]): Promise<void> {
+    await sendChunkedText(
+      `Found ${items.length} new matches at once for ${sub.animeName} - this looks like a backlog catch-up rather than a single new episode, so confirming before downloading:`,
+      items.map((item) => `- ${item.title}`),
+      (text) => bot.api.sendMessage(adminId, text),
+    );
+    await bot.api.sendMessage(adminId, "Download all of these now?", {
+      reply_markup: bulkAskKeyboard(sub.id, batchId),
+    });
   }
 
   async function pollOnce(): Promise<void> {
@@ -44,6 +62,8 @@ export function startPoller(bot: Bot<BotContext>, store: Store, adminId: number)
               .map((item) => parseReleaseTitle(sub.provider, item.title)?.episode)
               .filter((ep): ep is string => Boolean(ep)),
           );
+
+          const downloadEligible: { item: NyaaItem; episode: string }[] = [];
 
           for (const item of candidates) {
             const episode = parseReleaseTitle(sub.provider, item.title)?.episode;
@@ -77,6 +97,30 @@ export function startPoller(bot: Bot<BotContext>, store: Store, adminId: number)
               continue;
             }
 
+            downloadEligible.push({ item, episode });
+          }
+
+          if (downloadEligible.length > BULK_CATCH_UP_THRESHOLD) {
+            const batchId = crypto.randomUUID();
+            for (const { item, episode } of downloadEligible) {
+              store.addPendingAsk(sub.id, {
+                torrentId: item.torrentId,
+                infoHash: item.infoHash,
+                title: item.title,
+                episode,
+                magnet: item.magnet,
+                batchId,
+              });
+            }
+            await sendBulkCatchUpPrompt(
+              sub,
+              batchId,
+              downloadEligible.map((d) => d.item),
+            );
+            continue;
+          }
+
+          for (const { item, episode } of downloadEligible) {
             try {
               await downloadItem(client, downloader, item);
               store.markSeen(sub.id, item.infoHash);

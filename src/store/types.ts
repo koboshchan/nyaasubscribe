@@ -18,6 +18,9 @@ export interface PendingAsk {
   title: string;
   episode: string;
   magnet: string;
+  // Set when this ask is part of a bulk catch-up batch (see poller), so a
+  // single Download All/Skip All action can resolve every item in it at once.
+  batchId?: string;
 }
 
 export interface Subscription {

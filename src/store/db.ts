@@ -127,4 +127,18 @@ export class Store {
       this.persist();
     }
   }
+
+  getPendingAsksByBatch(id: string, batchId: string): PendingAsk[] {
+    return this.getSubscription(id)?.pendingAsks.filter((p) => p.batchId === batchId) ?? [];
+  }
+
+  removePendingAsksByBatch(id: string, batchId: string): void {
+    const sub = this.getSubscription(id);
+    if (!sub) return;
+    const before = sub.pendingAsks.length;
+    sub.pendingAsks = sub.pendingAsks.filter((p) => p.batchId !== batchId);
+    if (sub.pendingAsks.length !== before) {
+      this.persist();
+    }
+  }
 }

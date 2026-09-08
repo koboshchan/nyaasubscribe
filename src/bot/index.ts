@@ -11,6 +11,7 @@ import { registerSubscriptionHandlers } from "./handlers/subscriptions";
 import { registerSettingsHandlers } from "./handlers/settings";
 import { registerHelpHandlers } from "./handlers/help";
 import { registerEpisodeAskHandlers } from "./handlers/episodeAsk";
+import { registerBulkAskHandlers } from "./handlers/bulkAsk";
 
 export function createBot(token: string, adminId: number, store: Store): Bot<BotContext> {
   const bot = new Bot<BotContext>(token);
@@ -32,6 +33,7 @@ export function createBot(token: string, adminId: number, store: Store): Bot<Bot
   registerSettingsHandlers(bot, store);
   registerHelpHandlers(bot);
   registerEpisodeAskHandlers(bot, store);
+  registerBulkAskHandlers(bot, store);
 
   bot.catch((err) => {
     console.error("Bot error:", err.error);

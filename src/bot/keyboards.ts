@@ -67,3 +67,9 @@ export function episodeAskKeyboard(subId: string, torrentId: string): InlineKeyb
     .text("Download this release", `epdl:${subId}:${torrentId}`)
     .text("Skip", `epskip:${subId}:${torrentId}`);
 }
+
+export function bulkAskKeyboard(subId: string, batchId: string): InlineKeyboard {
+  return new InlineKeyboard()
+    .text("Download All", `bulkdl:${subId}:${batchId}`)
+    .text("Skip All", `bulkskip:${subId}:${batchId}`);
+}

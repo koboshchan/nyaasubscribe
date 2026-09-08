@@ -6,21 +6,7 @@ import { fetchProviderFeed } from "../../nyaa/search";
 import { matchesSubscription, parseReleaseTitle, isWebRip } from "../../nyaa/titleParser";
 import { DownloaderClient } from "../../downloader/client";
 import { backToMainKeyboard, confirmDownloadAllKeyboard } from "../keyboards";
-
-const MAX_MESSAGE_CHARS = 3500;
-
-async function sendChunked(ctx: BotContext, header: string, lines: string[]): Promise<void> {
-  let chunk = header;
-  for (const line of lines) {
-    if (chunk.length + line.length + 1 > MAX_MESSAGE_CHARS) {
-      await ctx.reply(chunk);
-      chunk = line;
-    } else {
-      chunk += "\n" + line;
-    }
-  }
-  if (chunk) await ctx.reply(chunk);
-}
+import { sendChunkedText } from "../../util/chunkedText";
 
 export async function runDownloadExistingFlow(
   conversation: Conversation<BotContext>,
@@ -99,10 +85,10 @@ export async function runDownloadExistingFlow(
     return;
   }
 
-  await sendChunked(
-    ctx,
+  await sendChunkedText(
     `Found ${toDownload.length} existing episode(s) for ${animeName}:`,
     toDownload.map((item) => `- ${item.title}`),
+    (text) => ctx.reply(text),
   );
   await ctx.reply("Download all of these now?", { reply_markup: confirmDownloadAllKeyboard() });
 
@@ -161,10 +147,10 @@ export async function runDownloadExistingFlow(
     }
   }
 
-  await sendChunked(
-    ctx,
+  await sendChunkedText(
     `Downloaded ${succeeded}/${toDownload.length} episode(s).`,
     failures.map((f) => `- ${f}`),
+    (text) => ctx.reply(text),
   );
   await ctx.reply("Done.", { reply_markup: backToMainKeyboard() });
 }
