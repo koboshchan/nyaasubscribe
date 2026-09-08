@@ -7,6 +7,8 @@ export function mainMenuKeyboard(): InlineKeyboard {
     .row()
     .text("Add Subscription", "menu:add")
     .row()
+    .text("Download Existing", "menu:downloadexisting")
+    .row()
     .text("Settings", "menu:settings")
     .row()
     .text("Help", "menu:help");

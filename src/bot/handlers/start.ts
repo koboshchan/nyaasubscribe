@@ -19,4 +19,9 @@ export function registerStartHandlers(bot: Bot<BotContext>): void {
     await ctx.answerCallbackQuery();
     await ctx.conversation.enter("addSubscription");
   });
+
+  bot.callbackQuery("menu:downloadexisting", async (ctx) => {
+    await ctx.answerCallbackQuery();
+    await ctx.conversation.enter("downloadExistingOneShot");
+  });
 }

@@ -27,10 +27,14 @@ export async function runDownloadExistingFlow(
   conversation: Conversation<BotContext>,
   ctx: BotContext,
   store: Store,
-  subscriptionId: string,
   provider: Provider,
   animeName: string,
   resolution: Resolution,
+  // Omit when this is a one-off download with no subscription behind it
+  // (e.g. a show that already finished airing) - in that case there's no
+  // seen/downloaded state to check or update, since there's no future poll
+  // to protect from re-downloading.
+  subscriptionId?: string,
 ): Promise<void> {
   let items: NyaaItem[];
   try {
@@ -40,7 +44,9 @@ export async function runDownloadExistingFlow(
     return;
   }
 
-  const sub = await conversation.external(() => store.getSubscription(subscriptionId));
+  const sub = subscriptionId
+    ? await conversation.external(() => store.getSubscription(subscriptionId))
+    : undefined;
   const seenHashes = sub?.seenHashes ?? [];
   const downloadedEpisodes = sub?.downloadedEpisodes ?? [];
 
@@ -48,10 +54,12 @@ export async function runDownloadExistingFlow(
     (item) => !seenHashes.includes(item.infoHash) && matchesSubscription(provider, item.title, animeName, resolution),
   );
 
+  const noneFoundMessage = subscriptionId
+    ? "No existing releases found. You'll be notified when a new episode appears."
+    : "No existing releases found.";
+
   if (matches.length === 0) {
-    await ctx.reply("No existing releases found. You'll be notified when a new episode appears.", {
-      reply_markup: backToMainKeyboard(),
-    });
+    await ctx.reply(noneFoundMessage, { reply_markup: backToMainKeyboard() });
     return;
   }
 
@@ -77,18 +85,18 @@ export async function runDownloadExistingFlow(
     }
   }
 
-  await conversation.external(() => {
-    for (const item of superseded) {
-      store.markSeen(subscriptionId, item.infoHash);
-    }
-  });
+  if (subscriptionId) {
+    await conversation.external(() => {
+      for (const item of superseded) {
+        store.markSeen(subscriptionId, item.infoHash);
+      }
+    });
+  }
 
   const toDownload = [...byEpisode.values()].sort((a, b) => a.title.localeCompare(b.title));
 
   if (toDownload.length === 0) {
-    await ctx.reply("No existing releases found. You'll be notified when a new episode appears.", {
-      reply_markup: backToMainKeyboard(),
-    });
+    await ctx.reply(noneFoundMessage, { reply_markup: backToMainKeyboard() });
     return;
   }
 
@@ -104,17 +112,21 @@ export async function runDownloadExistingFlow(
   await confirmCtx.answerCallbackQuery();
 
   if (!wantsDownload) {
-    await conversation.external(() => {
-      for (const item of toDownload) {
-        store.markSeen(subscriptionId, item.infoHash);
-        const episode = parseReleaseTitle(provider, item.title)?.episode;
-        if (episode) store.addDownloadedEpisode(subscriptionId, episode);
-      }
-    });
-    await ctx.reply(
-      "Skipped. Those will not be downloaded automatically; only new episodes going forward will be.",
-      { reply_markup: backToMainKeyboard() },
-    );
+    if (subscriptionId) {
+      await conversation.external(() => {
+        for (const item of toDownload) {
+          store.markSeen(subscriptionId, item.infoHash);
+          const episode = parseReleaseTitle(provider, item.title)?.episode;
+          if (episode) store.addDownloadedEpisode(subscriptionId, episode);
+        }
+      });
+      await ctx.reply(
+        "Skipped. Those will not be downloaded automatically; only new episodes going forward will be.",
+        { reply_markup: backToMainKeyboard() },
+      );
+    } else {
+      await ctx.reply("Skipped.", { reply_markup: backToMainKeyboard() });
+    }
     return;
   }
 
@@ -138,11 +150,13 @@ export async function runDownloadExistingFlow(
       const token = await conversation.external(() => client.getToken());
       await conversation.external(() => client.addUrl(token, magnet, downloader.downloadDirIndex));
 
-      const episode = parseReleaseTitle(provider, item.title)?.episode;
-      await conversation.external(() => {
-        store.markSeen(subscriptionId, item.infoHash);
-        if (episode) store.addDownloadedEpisode(subscriptionId, episode);
-      });
+      if (subscriptionId) {
+        const episode = parseReleaseTitle(provider, item.title)?.episode;
+        await conversation.external(() => {
+          store.markSeen(subscriptionId, item.infoHash);
+          if (episode) store.addDownloadedEpisode(subscriptionId, episode);
+        });
+      }
       succeeded++;
     } catch (err) {
       failures.push(`${item.title}: ${(err as Error).message}`);

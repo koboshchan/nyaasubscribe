@@ -18,6 +18,6 @@ export function downloadExistingConversation(store: Store) {
       await ctx.reply("That subscription no longer exists.", { reply_markup: backToMainKeyboard() });
       return;
     }
-    await runDownloadExistingFlow(conversation, ctx, store, sub.id, sub.provider, sub.animeName, sub.resolution);
+    await runDownloadExistingFlow(conversation, ctx, store, sub.provider, sub.animeName, sub.resolution, sub.id);
   };
 }

@@ -1,9 +1,9 @@
 import type { Conversation } from "@grammyjs/conversations";
 import type { BotContext } from "../context";
 import type { Store } from "../../store/db";
-import type { Provider, Resolution } from "../../nyaa/types";
 import type { PendingAsk } from "../../store/types";
-import { providerKeyboard, resolutionKeyboard, backToMainKeyboard } from "../keyboards";
+import { backToMainKeyboard } from "../keyboards";
+import { promptShowSelection } from "./promptShowSelection";
 import { runDownloadExistingFlow } from "./downloadExistingFlow";
 
 export function addSubscriptionConversation(store: Store) {
@@ -11,26 +11,12 @@ export function addSubscriptionConversation(store: Store) {
     conversation: Conversation<BotContext>,
     ctx: BotContext,
   ): Promise<void> {
-    await ctx.reply(
-      "Send the exact release title, for example: Mushoku Tensei S3\n\nSend /cancel to abort.",
-    );
-    const nameCtx = await conversation.waitFor("message:text");
-    const text = nameCtx.message.text.trim();
-    if (!text || text === "/cancel") {
+    const selection = await promptShowSelection(conversation, ctx);
+    if (!selection) {
       await ctx.reply("Cancelled.", { reply_markup: backToMainKeyboard() });
       return;
     }
-    const animeName = text;
-
-    await ctx.reply("Choose a provider:", { reply_markup: providerKeyboard() });
-    const providerCtx = await conversation.waitForCallbackQuery(/^provider:/);
-    const provider = providerCtx.callbackQuery.data.split(":")[1] as Provider;
-    await providerCtx.answerCallbackQuery();
-
-    await ctx.reply("Choose a resolution:", { reply_markup: resolutionKeyboard() });
-    const resolutionCtx = await conversation.waitForCallbackQuery(/^resolution:/);
-    const resolution = resolutionCtx.callbackQuery.data.split(":")[1] as Resolution;
-    await resolutionCtx.answerCallbackQuery();
+    const { animeName, provider, resolution } = selection;
 
     const alreadySubscribed = store
       .listSubscriptions()
@@ -65,6 +51,6 @@ export function addSubscriptionConversation(store: Store) {
       `Subscribed:\n${animeName}\nProvider: ${provider}\nResolution: ${resolution}\n\nChecking for existing releases...`,
     );
 
-    await runDownloadExistingFlow(conversation, ctx, store, subscription.id, provider, animeName, resolution);
+    await runDownloadExistingFlow(conversation, ctx, store, provider, animeName, resolution, subscription.id);
   };
 }
