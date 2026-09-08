@@ -17,6 +17,7 @@ export interface PendingAsk {
   infoHash: string;
   title: string;
   episode: string;
+  magnet: string;
 }
 
 export interface Subscription {

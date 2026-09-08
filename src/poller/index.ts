@@ -1,9 +1,8 @@
 import type { Bot } from "grammy";
 import type { BotContext } from "../bot/context";
 import type { Store } from "../store/db";
-import { fetchProviderFeed } from "../nyaa/rss";
+import { fetchProviderFeed } from "../nyaa/search";
 import { matchesSubscription, parseReleaseTitle, isWebRip } from "../nyaa/titleParser";
-import { resolveMagnet } from "../nyaa/nyaaApi";
 import { DownloaderClient } from "../downloader/client";
 import { episodeAskKeyboard } from "../bot/keyboards";
 import type { DownloaderConfig } from "../store/types";
@@ -13,9 +12,8 @@ export function startPoller(bot: Bot<BotContext>, store: Store, adminId: number)
   let running = false;
 
   async function downloadItem(client: DownloaderClient, downloader: DownloaderConfig, item: NyaaItem): Promise<void> {
-    const magnet = await resolveMagnet(item.torrentId);
     const token = await client.getToken();
-    await client.addUrl(token, magnet, downloader.downloadDirIndex);
+    await client.addUrl(token, item.magnet, downloader.downloadDirIndex);
   }
 
   async function pollOnce(): Promise<void> {
@@ -69,6 +67,7 @@ export function startPoller(bot: Bot<BotContext>, store: Store, adminId: number)
                 infoHash: item.infoHash,
                 title: item.title,
                 episode,
+                magnet: item.magnet,
               });
               await bot.api.sendMessage(
                 adminId,

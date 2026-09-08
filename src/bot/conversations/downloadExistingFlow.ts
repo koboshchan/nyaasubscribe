@@ -2,9 +2,8 @@ import type { Conversation } from "@grammyjs/conversations";
 import type { BotContext } from "../context";
 import type { Store } from "../../store/db";
 import type { NyaaItem, Provider, Resolution } from "../../nyaa/types";
-import { fetchProviderFeed } from "../../nyaa/rss";
+import { fetchProviderFeed } from "../../nyaa/search";
 import { matchesSubscription, parseReleaseTitle, isWebRip } from "../../nyaa/titleParser";
-import { resolveMagnet } from "../../nyaa/nyaaApi";
 import { DownloaderClient } from "../../downloader/client";
 import { backToMainKeyboard, confirmDownloadAllKeyboard } from "../keyboards";
 
@@ -146,9 +145,8 @@ export async function runDownloadExistingFlow(
   const failures: string[] = [];
   for (const item of toDownload) {
     try {
-      const magnet = await conversation.external(() => resolveMagnet(item.torrentId));
       const token = await conversation.external(() => client.getToken());
-      await conversation.external(() => client.addUrl(token, magnet, downloader.downloadDirIndex));
+      await conversation.external(() => client.addUrl(token, item.magnet, downloader.downloadDirIndex));
 
       if (subscriptionId) {
         const episode = parseReleaseTitle(provider, item.title)?.episode;

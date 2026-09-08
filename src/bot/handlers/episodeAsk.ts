@@ -2,7 +2,6 @@ import type { Bot } from "grammy";
 import type { BotContext } from "../context";
 import type { Store } from "../../store/db";
 import { DownloaderClient } from "../../downloader/client";
-import { resolveMagnet } from "../../nyaa/nyaaApi";
 
 export function registerEpisodeAskHandlers(bot: Bot<BotContext>, store: Store): void {
   bot.callbackQuery(/^epdl:([^:]+):(\d+)$/, async (ctx) => {
@@ -24,14 +23,13 @@ export function registerEpisodeAskHandlers(bot: Bot<BotContext>, store: Store): 
 
     await ctx.answerCallbackQuery({ text: "Downloading..." });
     try {
-      const magnet = await resolveMagnet(pending.torrentId);
       const client = new DownloaderClient(
         settings.downloader.baseUrl,
         settings.downloader.username,
         settings.downloader.password,
       );
       const token = await client.getToken();
-      await client.addUrl(token, magnet, settings.downloader.downloadDirIndex);
+      await client.addUrl(token, pending.magnet, settings.downloader.downloadDirIndex);
 
       store.markSeen(subId, pending.infoHash);
       store.addDownloadedEpisode(subId, pending.episode);

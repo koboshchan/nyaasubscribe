@@ -36,7 +36,9 @@ export class Store {
         ...sub,
         seenHashes: sub.seenHashes ?? [],
         downloadedEpisodes: sub.downloadedEpisodes ?? [],
-        pendingAsks: sub.pendingAsks ?? [],
+        // Drop any pre-magnet pending asks from before this field existed;
+        // they'll simply be re-raised on the next poll if still relevant.
+        pendingAsks: (sub.pendingAsks ?? []).filter((p) => typeof p.magnet === "string"),
       })) as Subscription[],
     };
   }

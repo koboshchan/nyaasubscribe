@@ -5,9 +5,8 @@ export interface NyaaItem {
   title: string;
   guid: string;
   torrentId: string;
-  pubDate: string;
   infoHash: string;
-  trusted: boolean;
+  magnet: string;
   seeders: number;
   size: string;
 }
