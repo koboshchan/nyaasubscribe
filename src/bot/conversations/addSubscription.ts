@@ -3,9 +3,8 @@ import type { BotContext } from "../context";
 import type { Store } from "../../store/db";
 import type { Provider, Resolution } from "../../nyaa/types";
 import type { PendingAsk } from "../../store/types";
-import { fetchProviderFeed } from "../../nyaa/rss";
-import { matchesSubscription, parseReleaseTitle } from "../../nyaa/titleParser";
 import { providerKeyboard, resolutionKeyboard, backToMainKeyboard } from "../keyboards";
+import { runDownloadExistingFlow } from "./downloadExistingFlow";
 
 export function addSubscriptionConversation(store: Store) {
   return async function addSubscription(
@@ -63,37 +62,9 @@ export function addSubscriptionConversation(store: Store) {
     await conversation.external(() => store.addSubscription(subscription));
 
     await ctx.reply(
-      `Subscribed:\n${animeName}\nProvider: ${provider}\nResolution: ${resolution}\n\nChecking for existing matches...`,
+      `Subscribed:\n${animeName}\nProvider: ${provider}\nResolution: ${resolution}\n\nChecking for existing releases...`,
     );
 
-    try {
-      const items = await conversation.external(() => fetchProviderFeed(provider, animeName));
-      const matches = items.filter(
-        (item) => matchesSubscription(provider, item.title, animeName, resolution),
-      );
-      if (matches.length > 0) {
-        await conversation.external(() => {
-          for (const item of matches) {
-            store.markSeen(subscription.id, item.infoHash);
-            const parsed = parseReleaseTitle(provider, item.title);
-            if (parsed) {
-              store.addDownloadedEpisode(subscription.id, parsed.episode);
-            }
-          }
-        });
-        await ctx.reply(
-          `Found ${matches.length} existing matching release(s). Those will not be downloaded automatically; only new episodes going forward will be.`,
-          { reply_markup: backToMainKeyboard() },
-        );
-      } else {
-        await ctx.reply("No matching releases yet. You'll be notified when a new episode appears.", {
-          reply_markup: backToMainKeyboard(),
-        });
-      }
-    } catch (err) {
-      await ctx.reply(`Subscription saved, but the initial feed check failed: ${(err as Error).message}`, {
-        reply_markup: backToMainKeyboard(),
-      });
-    }
+    await runDownloadExistingFlow(conversation, ctx, store, subscription.id, provider, animeName, resolution);
   };
 }

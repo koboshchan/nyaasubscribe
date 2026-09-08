@@ -1,9 +1,10 @@
 import { Bot, session } from "grammy";
 import { conversations, createConversation } from "@grammyjs/conversations";
-import type { BotContext } from "./context";
+import type { BotContext, SessionData } from "./context";
 import type { Store } from "../store/db";
 import { addSubscriptionConversation } from "./conversations/addSubscription";
 import { configureDownloaderConversation } from "./conversations/configureDownloader";
+import { downloadExistingConversation } from "./conversations/downloadExisting";
 import { registerStartHandlers } from "./handlers/start";
 import { registerSubscriptionHandlers } from "./handlers/subscriptions";
 import { registerSettingsHandlers } from "./handlers/settings";
@@ -18,10 +19,11 @@ export function createBot(token: string, adminId: number, store: Store): Bot<Bot
     await next();
   });
 
-  bot.use(session({ initial: () => ({}) }));
+  bot.use(session({ initial: (): SessionData => ({}) }));
   bot.use(conversations());
   bot.use(createConversation(addSubscriptionConversation(store), "addSubscription"));
   bot.use(createConversation(configureDownloaderConversation(store), "configureDownloader"));
+  bot.use(createConversation(downloadExistingConversation(store), "downloadExisting"));
 
   registerStartHandlers(bot);
   registerSubscriptionHandlers(bot, store);

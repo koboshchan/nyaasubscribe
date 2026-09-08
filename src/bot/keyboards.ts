@@ -29,7 +29,14 @@ export function resolutionKeyboard(): InlineKeyboard {
 }
 
 export function subscriptionCardKeyboard(sub: Subscription): InlineKeyboard {
-  return new InlineKeyboard().text("Remove", `remove-sub:${sub.id}`);
+  return new InlineKeyboard()
+    .text("Download Existing", `dlexisting:${sub.id}`)
+    .row()
+    .text("Remove", `remove-sub:${sub.id}`);
+}
+
+export function confirmDownloadAllKeyboard(): InlineKeyboard {
+  return new InlineKeyboard().text("Download All", "dlall:yes").text("Skip", "dlall:no");
 }
 
 export function pollIntervalKeyboard(): InlineKeyboard {

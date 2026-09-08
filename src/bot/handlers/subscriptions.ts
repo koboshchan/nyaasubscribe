@@ -18,6 +18,14 @@ export function registerSubscriptionHandlers(bot: Bot<BotContext>, store: Store)
     await ctx.answerCallbackQuery({ text: "Removed" });
     await ctx.editMessageText("Subscription removed.");
   });
+
+  bot.callbackQuery(/^dlexisting:(.+)/, async (ctx) => {
+    const id = ctx.match?.[1];
+    if (!id) return;
+    await ctx.answerCallbackQuery();
+    ctx.session.pendingDownloadExistingId = id;
+    await ctx.conversation.enter("downloadExisting");
+  });
 }
 
 async function sendSubscriptions(ctx: BotContext, store: Store): Promise<void> {
