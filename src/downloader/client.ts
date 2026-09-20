@@ -1,33 +1,69 @@
-import { parseDownloaderType, type TorrentDownloaderType } from "../config/env";
-import { type DownloadDir, DownloaderError, type IDownloaderClient } from "./types";
+import type { DownloaderConfig } from "../store/types";
+import {
+  type DownloadDir,
+  DownloaderError,
+  type IDownloaderClient,
+  type DownloaderClientType,
+  type QBitAuthMethod,
+} from "./types";
 import { UBitDownloaderClient } from "./ubit";
-import { QBitDownloaderClient } from "./qbit";
+import { QBitDownloaderClient, type QBitClientOptions } from "./qbit";
 
-export { type DownloadDir, DownloaderError, type IDownloaderClient, UBitDownloaderClient, QBitDownloaderClient };
+export {
+  type DownloadDir,
+  DownloaderError,
+  type IDownloaderClient,
+  type DownloaderClientType,
+  type QBitAuthMethod,
+  UBitDownloaderClient,
+  QBitDownloaderClient,
+  type QBitClientOptions,
+};
 
 export function createDownloaderClient(
-  baseUrl: string,
-  username: string,
-  password: string,
-  type?: TorrentDownloaderType,
+  configOrBaseUrl: DownloaderConfig | string,
+  username?: string,
+  password?: string,
+  clientType?: DownloaderClientType,
+  apiToken?: string,
 ): IDownloaderClient {
-  const downloaderType = type ?? parseDownloaderType(process.env.TORRENT_DOWNLOADER);
-  if (downloaderType === "q") {
-    return new QBitDownloaderClient(baseUrl, username, password);
+  if (typeof configOrBaseUrl === "string") {
+    const type = clientType ?? "ubit";
+    if (type === "qbit") {
+      return new QBitDownloaderClient({
+        baseUrl: configOrBaseUrl,
+        username,
+        password,
+        apiToken,
+      });
+    }
+    return new UBitDownloaderClient(configOrBaseUrl, username ?? "", password ?? "");
   }
-  return new UBitDownloaderClient(baseUrl, username, password);
+
+  const config = configOrBaseUrl;
+  const type = config.clientType ?? "ubit";
+  if (type === "qbit") {
+    return new QBitDownloaderClient({
+      baseUrl: config.baseUrl,
+      username: config.username,
+      password: config.password,
+      apiToken: config.apiToken,
+    });
+  }
+  return new UBitDownloaderClient(config.baseUrl, config.username ?? "", config.password ?? "");
 }
 
 export class DownloaderClient implements IDownloaderClient {
   private readonly delegate: IDownloaderClient;
 
   constructor(
-    baseUrl: string,
-    username: string,
-    password: string,
-    type?: TorrentDownloaderType,
+    configOrBaseUrl: DownloaderConfig | string,
+    username?: string,
+    password?: string,
+    clientType?: DownloaderClientType,
+    apiToken?: string,
   ) {
-    this.delegate = createDownloaderClient(baseUrl, username, password, type);
+    this.delegate = createDownloaderClient(configOrBaseUrl, username, password, clientType, apiToken);
   }
 
   getToken(): Promise<string> {

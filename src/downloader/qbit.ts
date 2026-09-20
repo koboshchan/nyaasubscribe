@@ -9,14 +9,38 @@ interface QBitPreferences {
   save_path?: string;
 }
 
+export interface QBitClientOptions {
+  baseUrl: string;
+  username?: string;
+  password?: string;
+  apiToken?: string;
+}
+
 export class QBitDownloaderClient implements IDownloaderClient {
   private cookie: string | null = null;
+  private readonly baseUrl: string;
+  private readonly username?: string;
+  private readonly password?: string;
+  private readonly apiToken?: string;
 
   constructor(
-    private readonly baseUrl: string,
-    private readonly username: string,
-    private readonly password: string,
-  ) {}
+    optionsOrBaseUrl: QBitClientOptions | string,
+    username?: string,
+    password?: string,
+    apiToken?: string,
+  ) {
+    if (typeof optionsOrBaseUrl === "string") {
+      this.baseUrl = optionsOrBaseUrl;
+      this.username = username;
+      this.password = password;
+      this.apiToken = apiToken;
+    } else {
+      this.baseUrl = optionsOrBaseUrl.baseUrl;
+      this.username = optionsOrBaseUrl.username;
+      this.password = optionsOrBaseUrl.password;
+      this.apiToken = optionsOrBaseUrl.apiToken;
+    }
+  }
 
   private normalizedBase(): string {
     return this.baseUrl.endsWith("/") ? this.baseUrl.slice(0, -1) : this.baseUrl;
@@ -28,7 +52,9 @@ export class QBitDownloaderClient implements IDownloaderClient {
       Referer: `${base}/`,
       Origin: base,
     };
-    if (this.cookie) {
+    if (this.apiToken) {
+      headers.Authorization = `Bearer ${this.apiToken}`;
+    } else if (this.cookie) {
       headers.Cookie = this.cookie;
     }
     return headers;
@@ -44,6 +70,25 @@ export class QBitDownloaderClient implements IDownloaderClient {
 
   async getToken(): Promise<string> {
     const base = this.normalizedBase();
+
+    if (this.apiToken) {
+      // For token auth, verify that the token works
+      const res = await fetch(`${base}/api/v2/app/version`, {
+        headers: this.requestHeaders(),
+      });
+      if (res.status === 401 || res.status === 403) {
+        throw new DownloaderError("API token authentication failed: unauthorized");
+      }
+      if (!res.ok) {
+        throw new DownloaderError(`API token verification failed: ${res.status}`);
+      }
+      return this.apiToken;
+    }
+
+    if (!this.username || !this.password) {
+      throw new DownloaderError("Username and password are required for cookie authentication");
+    }
+
     const body = new URLSearchParams({
       username: this.username,
       password: this.password,
@@ -75,6 +120,20 @@ export class QBitDownloaderClient implements IDownloaderClient {
   }
 
   private async fetchWithAuth(url: string, init?: RequestInit): Promise<Response> {
+    if (this.apiToken) {
+      const res = await fetch(url, {
+        ...init,
+        headers: {
+          ...this.requestHeaders(),
+          ...(init?.headers as Record<string, string> | undefined),
+        },
+      });
+      if (res.status === 401 || res.status === 403) {
+        throw new DownloaderError("Unauthorized: invalid API token");
+      }
+      return res;
+    }
+
     if (!this.cookie) {
       await this.getToken();
     }

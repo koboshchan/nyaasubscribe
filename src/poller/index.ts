@@ -43,7 +43,8 @@ export function startPoller(bot: Bot<BotContext>, store: Store, adminId: number)
       const downloader = settings.downloader;
       if (!downloader) return;
 
-      const client = new DownloaderClient(downloader.baseUrl, downloader.username, downloader.password);
+      const client = new DownloaderClient(downloader);
+
 
       for (const sub of store.listSubscriptions()) {
         try {

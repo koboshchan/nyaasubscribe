@@ -1,9 +1,7 @@
 import type { Bot } from "grammy";
 import type { BotContext } from "../context";
 import type { Store } from "../../store/db";
-import { parseDownloaderType } from "../../config/env";
 import { settingsKeyboard, pollIntervalKeyboard, backToMainKeyboard } from "../keyboards";
-
 
 export function registerSettingsHandlers(bot: Bot<BotContext>, store: Store): void {
   bot.command("settings", (ctx) => sendSettings(ctx, store));
@@ -32,18 +30,18 @@ export function registerSettingsHandlers(bot: Bot<BotContext>, store: Store): vo
 }
 
 async function sendSettings(ctx: BotContext, store: Store): Promise<void> {
-
   const settings = store.getSettings();
-  const downloaderType = parseDownloaderType(process.env.TORRENT_DOWNLOADER);
-  const clientName = downloaderType === "q" ? "qBittorrent" : "uTorrent";
-  const downloaderStatus = settings.downloader
-    ? `Configured (${settings.downloader.baseUrl})`
-    : "Not configured";
+  const downloader = settings.downloader;
+  let downloaderStatus = "Not configured";
+  if (downloader) {
+    const clientName = downloader.clientType === "qbit" ? "qBittorrent" : "uTorrent";
+    const authType = downloader.apiToken ? "API Token" : "Password";
+    downloaderStatus = `Configured (${clientName}, ${downloader.baseUrl}, ${authType})`;
+  }
   const text = [
     "Settings",
-    `Downloader (${clientName}): ${downloaderStatus}`,
+    `Downloader: ${downloaderStatus}`,
     `Poll interval: ${settings.pollIntervalMinutes} minutes`,
   ].join("\n");
   await ctx.reply(text, { reply_markup: settingsKeyboard() });
 }
-

@@ -1,17 +1,6 @@
-export type TorrentDownloaderType = "u" | "q";
-
 export interface Env {
   botToken: string;
   adminId: number;
-  torrentDownloader: TorrentDownloaderType;
-}
-
-export function parseDownloaderType(raw?: string | null): TorrentDownloaderType {
-  const val = raw?.trim().toLowerCase();
-  if (val === "q" || val === "qbit" || val === "qbittorrent") {
-    return "q";
-  }
-  return "u";
 }
 
 export function loadEnv(): Env {
@@ -30,8 +19,7 @@ export function loadEnv(): Env {
     throw new Error("ADMIN_ID must be an integer");
   }
 
-  const torrentDownloader = parseDownloaderType(process.env.TORRENT_DOWNLOADER);
-
-  return { botToken, adminId, torrentDownloader };
+  return { botToken, adminId };
 }
+
 

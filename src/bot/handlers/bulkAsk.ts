@@ -26,7 +26,8 @@ export function registerBulkAskHandlers(bot: Bot<BotContext>, store: Store): voi
     await ctx.answerCallbackQuery({ text: "Downloading..." });
     await ctx.editMessageText(`Downloading ${items.length} episode(s)...`);
 
-    const client = new DownloaderClient(downloader.baseUrl, downloader.username, downloader.password);
+    const client = new DownloaderClient(downloader);
+
 
     let succeeded = 0;
     const failures: string[] = [];

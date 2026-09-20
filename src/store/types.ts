@@ -1,12 +1,19 @@
 import type { Provider, Resolution } from "../nyaa/types";
 
+export type DownloaderClientType = "ubit" | "qbit";
+export type QBitAuthMethod = "password" | "token";
+
 export interface DownloaderConfig {
+  clientType?: DownloaderClientType;
   baseUrl: string;
-  username: string;
-  password: string;
+  username?: string;
+  password?: string;
+  apiToken?: string;
+  authMethod?: QBitAuthMethod;
   downloadDirIndex: number;
   downloadDirPath?: string;
 }
+
 
 
 export interface Settings {

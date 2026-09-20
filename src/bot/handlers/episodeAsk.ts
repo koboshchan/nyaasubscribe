@@ -23,11 +23,8 @@ export function registerEpisodeAskHandlers(bot: Bot<BotContext>, store: Store): 
 
     await ctx.answerCallbackQuery({ text: "Downloading..." });
     try {
-      const client = new DownloaderClient(
-        settings.downloader.baseUrl,
-        settings.downloader.username,
-        settings.downloader.password,
-      );
+      const client = new DownloaderClient(settings.downloader);
+
       const token = await client.getToken();
       await client.addUrl(
         token,

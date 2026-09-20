@@ -1,31 +1,8 @@
-import { describe, it, beforeEach, afterEach } from "node:test";
+import { describe, it, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { parseDownloaderType } from "../src/config/env";
 import { UBitDownloaderClient } from "../src/downloader/ubit";
 import { QBitDownloaderClient } from "../src/downloader/qbit";
 import { DownloaderClient, DownloaderError } from "../src/downloader/client";
-
-describe("Downloader Configuration & Types", () => {
-  it("defaults to 'u' when env variable is missing, empty, or 'u'", () => {
-    assert.equal(parseDownloaderType(undefined), "u");
-    assert.equal(parseDownloaderType(null), "u");
-    assert.equal(parseDownloaderType(""), "u");
-    assert.equal(parseDownloaderType("   "), "u");
-    assert.equal(parseDownloaderType("u"), "u");
-    assert.equal(parseDownloaderType("U"), "u");
-    assert.equal(parseDownloaderType("ubit"), "u");
-    assert.equal(parseDownloaderType("utorrent"), "u");
-    assert.equal(parseDownloaderType("anything_else"), "u");
-  });
-
-  it("resolves to 'q' when env variable is 'q', 'Q', 'qbit', or 'qbittorrent'", () => {
-    assert.equal(parseDownloaderType("q"), "q");
-    assert.equal(parseDownloaderType("Q"), "q");
-    assert.equal(parseDownloaderType(" q "), "q");
-    assert.equal(parseDownloaderType("qbit"), "q");
-    assert.equal(parseDownloaderType("qbittorrent"), "q");
-  });
-});
 
 describe("UBitDownloaderClient", () => {
   const originalFetch = globalThis.fetch;
@@ -35,7 +12,7 @@ describe("UBitDownloaderClient", () => {
   });
 
   it("authenticates and retrieves token and cookie", async () => {
-    globalThis.fetch = async (url, init) => {
+    globalThis.fetch = async (url) => {
       const u = String(url);
       if (u.includes("/gui/token.html")) {
         return new Response("<div id='token'>fake-ubit-token</div>", {
@@ -97,7 +74,7 @@ describe("UBitDownloaderClient", () => {
   });
 });
 
-describe("QBitDownloaderClient", () => {
+describe("QBitDownloaderClient - Password Auth", () => {
   const originalFetch = globalThis.fetch;
 
   afterEach(() => {
@@ -123,12 +100,16 @@ describe("QBitDownloaderClient", () => {
       throw new Error(`Unexpected url: ${u}`);
     };
 
-    const client = new QBitDownloaderClient("http://127.0.0.1:8080", "admin", "adminadmin");
+    const client = new QBitDownloaderClient({
+      baseUrl: "http://127.0.0.1:8080",
+      username: "admin",
+      password: "adminpassword",
+    });
     const token = await client.getToken();
     assert.equal(token, "SID=session-id-12345");
 
     assert.ok(capturedBody?.includes("username=admin"));
-    assert.ok(capturedBody?.includes("password=adminadmin"));
+    assert.ok(capturedBody?.includes("password=adminpassword"));
     const headersRecord = capturedHeaders as Record<string, string>;
     assert.equal(headersRecord.Referer, "http://127.0.0.1:8080/");
     assert.equal(headersRecord.Origin, "http://127.0.0.1:8080");
@@ -139,7 +120,11 @@ describe("QBitDownloaderClient", () => {
       return new Response("Fails.", { status: 200 });
     };
 
-    const client = new QBitDownloaderClient("http://127.0.0.1:8080", "admin", "wrongpassword");
+    const client = new QBitDownloaderClient({
+      baseUrl: "http://127.0.0.1:8080",
+      username: "admin",
+      password: "wrongpassword",
+    });
     await assert.rejects(() => client.getToken(), /invalid username or password/);
   });
 
@@ -148,8 +133,123 @@ describe("QBitDownloaderClient", () => {
       return new Response("Forbidden", { status: 403 });
     };
 
-    const client = new QBitDownloaderClient("http://127.0.0.1:8080", "admin", "wrongpassword");
+    const client = new QBitDownloaderClient({
+      baseUrl: "http://127.0.0.1:8080",
+      username: "admin",
+      password: "wrongpassword",
+    });
     await assert.rejects(() => client.getToken(), /IP banned/);
+  });
+
+  it("re-authenticates and retries if session expired with 403 on addUrl", async () => {
+    let loginCount = 0;
+    let addAttempts = 0;
+
+    globalThis.fetch = async (url) => {
+      const u = String(url);
+      if (u.includes("/api/v2/auth/login")) {
+        loginCount++;
+        return new Response("Ok.", {
+          status: 200,
+          headers: { "set-cookie": `SID=sid-${loginCount}; path=/` },
+        });
+      }
+      if (u.includes("/api/v2/torrents/add")) {
+        addAttempts++;
+        if (addAttempts === 1) {
+          return new Response("Forbidden", { status: 403 });
+        }
+        return new Response("Ok.", { status: 200 });
+      }
+      throw new Error(`Unexpected url: ${u}`);
+    };
+
+    const client = new QBitDownloaderClient({
+      baseUrl: "http://127.0.0.1:8080",
+      username: "admin",
+      password: "pass",
+    });
+    await client.getToken();
+    assert.equal(loginCount, 1);
+
+    await client.addUrl("token", "magnet:?xt=test", 0);
+    assert.equal(loginCount, 2);
+    assert.equal(addAttempts, 2);
+  });
+});
+
+describe("QBitDownloaderClient - API Token Auth", () => {
+  const originalFetch = globalThis.fetch;
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  it("verifies API token via app/version and returns token", async () => {
+    let capturedAuth: string | undefined;
+
+    globalThis.fetch = async (url, init) => {
+      const u = String(url);
+      if (u.includes("/api/v2/app/version")) {
+        capturedAuth = (init?.headers as Record<string, string>)?.Authorization;
+        return new Response("v5.2.0", { status: 200 });
+      }
+      throw new Error(`Unexpected url: ${u}`);
+    };
+
+    const client = new QBitDownloaderClient({
+      baseUrl: "http://127.0.0.1:8080",
+      apiToken: "qbt_abc1234567890abcdef",
+    });
+
+    const token = await client.getToken();
+    assert.equal(token, "qbt_abc1234567890abcdef");
+    assert.equal(capturedAuth, "Bearer qbt_abc1234567890abcdef");
+  });
+
+  it("throws DownloaderError if API token is rejected (401 or 403)", async () => {
+    globalThis.fetch = async () => new Response("Unauthorized", { status: 401 });
+
+    const client = new QBitDownloaderClient({
+      baseUrl: "http://127.0.0.1:8080",
+      apiToken: "qbt_invalid_token",
+    });
+
+    await assert.rejects(() => client.getToken(), /unauthorized/i);
+  });
+
+  it("adds torrent with Authorization: Bearer header and FormData", async () => {
+    let capturedBody: FormData | undefined;
+    let capturedAuth: string | undefined;
+
+    globalThis.fetch = async (url, init) => {
+      const u = String(url);
+      if (u.includes("/api/v2/torrents/add")) {
+        capturedAuth = (init?.headers as Record<string, string>)?.Authorization;
+        capturedBody = init?.body as FormData;
+        return new Response("Ok.", { status: 200 });
+      }
+      throw new Error(`Unexpected url: ${u}`);
+    };
+
+    const client = new QBitDownloaderClient({
+      baseUrl: "http://127.0.0.1:8080",
+      apiToken: "qbt_secret_token",
+    });
+
+    await client.addUrl("token", "magnet:?xt=test_magnet", 0, "/downloads/anime");
+    assert.equal(capturedAuth, "Bearer qbt_secret_token");
+    assert.ok(capturedBody instanceof FormData);
+    assert.equal(capturedBody.get("urls"), "magnet:?xt=test_magnet");
+    assert.equal(capturedBody.get("savepath"), "/downloads/anime");
+  });
+});
+
+describe("QBitDownloaderClient - Directories", () => {
+  const originalFetch = globalThis.fetch;
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
   });
 
   it("lists directories from defaultSavePath and categories", async () => {
@@ -177,7 +277,11 @@ describe("QBitDownloaderClient", () => {
       throw new Error(`Unexpected url: ${u}`);
     };
 
-    const client = new QBitDownloaderClient("http://127.0.0.1:8080", "admin", "pass");
+    const client = new QBitDownloaderClient({
+      baseUrl: "http://127.0.0.1:8080",
+      username: "admin",
+      password: "pass",
+    });
     const dirs = await client.listDirs();
 
     assert.equal(dirs.length, 2);
@@ -206,112 +310,66 @@ describe("QBitDownloaderClient", () => {
       throw new Error(`Unexpected url: ${u}`);
     };
 
-    const client = new QBitDownloaderClient("http://127.0.0.1:8080", "admin", "pass");
+    const client = new QBitDownloaderClient({
+      baseUrl: "http://127.0.0.1:8080",
+      username: "admin",
+      password: "pass",
+    });
     const dirs = await client.listDirs();
     assert.equal(dirs.length, 1);
     assert.equal(dirs[0].path, "/pref/downloads");
   });
-
-  it("adds torrent with FormData body and savepath", async () => {
-    let capturedBody: FormData | undefined;
-    let capturedHeaders: HeadersInit | undefined;
-
-    globalThis.fetch = async (url, init) => {
-      const u = String(url);
-      if (u.includes("/api/v2/auth/login")) {
-        return new Response("Ok.", {
-          status: 200,
-          headers: { "set-cookie": "SID=test-sid; path=/" },
-        });
-      }
-      if (u.includes("/api/v2/torrents/add")) {
-        capturedHeaders = init?.headers;
-        capturedBody = init?.body as FormData;
-        return new Response("Ok.", { status: 200 });
-      }
-      throw new Error(`Unexpected url: ${u}`);
-    };
-
-    const client = new QBitDownloaderClient("http://127.0.0.1:8080", "admin", "pass");
-    await client.addUrl("fake-token", "magnet:?xt=urn:btih:xyz", 0, "/downloads/anime");
-
-    assert.ok(capturedBody instanceof FormData);
-    assert.equal(capturedBody.get("urls"), "magnet:?xt=urn:btih:xyz");
-    assert.equal(capturedBody.get("savepath"), "/downloads/anime");
-
-    const headersRecord = capturedHeaders as Record<string, string>;
-    assert.equal(headersRecord.Cookie, "SID=test-sid");
-  });
-
-  it("re-authenticates and retries if session expired with 403 on addUrl", async () => {
-    let loginCount = 0;
-    let addAttempts = 0;
-
-    globalThis.fetch = async (url) => {
-      const u = String(url);
-      if (u.includes("/api/v2/auth/login")) {
-        loginCount++;
-        return new Response("Ok.", {
-          status: 200,
-          headers: { "set-cookie": `SID=sid-${loginCount}; path=/` },
-        });
-      }
-      if (u.includes("/api/v2/torrents/add")) {
-        addAttempts++;
-        if (addAttempts === 1) {
-          // First attempt returns 403 (expired session)
-          return new Response("Forbidden", { status: 403 });
-        }
-        // Second attempt succeeds
-        return new Response("Ok.", { status: 200 });
-      }
-      throw new Error(`Unexpected url: ${u}`);
-    };
-
-    const client = new QBitDownloaderClient("http://127.0.0.1:8080", "admin", "pass");
-    // Initial login
-    await client.getToken();
-    assert.equal(loginCount, 1);
-
-    // addUrl should catch 403, re-authenticate, and succeed
-    await client.addUrl("token", "magnet:?xt=test", 0);
-    assert.equal(loginCount, 2);
-    assert.equal(addAttempts, 2);
-  });
 });
 
 describe("DownloaderClient factory delegation", () => {
-  const originalEnv = process.env.TORRENT_DOWNLOADER;
-
-  afterEach(() => {
-    if (originalEnv === undefined) {
-      delete process.env.TORRENT_DOWNLOADER;
-    } else {
-      process.env.TORRENT_DOWNLOADER = originalEnv;
-    }
-  });
-
-  it("instantiates UBitDownloaderClient when TORRENT_DOWNLOADER is 'u'", () => {
-    process.env.TORRENT_DOWNLOADER = "u";
-    const client = new DownloaderClient("http://127.0.0.1:9178", "user", "pass");
+  it("instantiates UBitDownloaderClient when clientType is 'ubit'", () => {
+    const client = new DownloaderClient({
+      clientType: "ubit",
+      baseUrl: "http://127.0.0.1:9178",
+      username: "user",
+      password: "pass",
+      downloadDirIndex: 0,
+    });
     assert.equal((client as any).delegate instanceof UBitDownloaderClient, true);
   });
 
-  it("instantiates UBitDownloaderClient when TORRENT_DOWNLOADER is not set", () => {
-    delete process.env.TORRENT_DOWNLOADER;
-    const client = new DownloaderClient("http://127.0.0.1:9178", "user", "pass");
+  it("instantiates UBitDownloaderClient when clientType is not set (backwards compatibility)", () => {
+    const client = new DownloaderClient({
+      baseUrl: "http://127.0.0.1:9178",
+      username: "user",
+      password: "pass",
+      downloadDirIndex: 0,
+    });
     assert.equal((client as any).delegate instanceof UBitDownloaderClient, true);
   });
 
-  it("instantiates QBitDownloaderClient when TORRENT_DOWNLOADER is 'q'", () => {
-    process.env.TORRENT_DOWNLOADER = "q";
-    const client = new DownloaderClient("http://127.0.0.1:8080", "user", "pass");
+  it("instantiates QBitDownloaderClient when clientType is 'qbit' with password", () => {
+    const client = new DownloaderClient({
+      clientType: "qbit",
+      baseUrl: "http://127.0.0.1:8080",
+      username: "user",
+      password: "pass",
+      downloadDirIndex: 0,
+    });
     assert.equal((client as any).delegate instanceof QBitDownloaderClient, true);
   });
 
-  it("respects explicit constructor type parameter", () => {
-    process.env.TORRENT_DOWNLOADER = "u";
-    const client = new DownloaderClient("http://127.0.0.1:8080", "user", "pass", "q");
+  it("instantiates QBitDownloaderClient when clientType is 'qbit' with apiToken", () => {
+    const client = new DownloaderClient({
+      clientType: "qbit",
+      baseUrl: "http://127.0.0.1:8080",
+      apiToken: "qbt_xyz",
+      authMethod: "token",
+      downloadDirIndex: 0,
+    });
     assert.equal((client as any).delegate instanceof QBitDownloaderClient, true);
+  });
+
+  it("supports legacy string constructor arguments", () => {
+    const ubitClient = new DownloaderClient("http://127.0.0.1:9178", "user", "pass", "ubit");
+    assert.equal((ubitClient as any).delegate instanceof UBitDownloaderClient, true);
+
+    const qbitClient = new DownloaderClient("http://127.0.0.1:8080", "user", "pass", "qbit");
+    assert.equal((qbitClient as any).delegate instanceof QBitDownloaderClient, true);
   });
 });

@@ -60,9 +60,24 @@ export function settingsKeyboard(): InlineKeyboard {
     .text("Back", "menu:main");
 }
 
+export function downloaderClientChoiceKeyboard(): InlineKeyboard {
+  return new InlineKeyboard()
+    .text("uTorrent / BitTorrent", "client:ubit")
+    .row()
+    .text("qBittorrent", "client:qbit");
+}
+
+export function qbitAuthChoiceKeyboard(): InlineKeyboard {
+  return new InlineKeyboard()
+    .text("Username & Password", "qbitauth:password")
+    .row()
+    .text("API Token (v5.2+)", "qbitauth:token");
+}
+
 export function backToMainKeyboard(): InlineKeyboard {
   return new InlineKeyboard().text("Back", "menu:main");
 }
+
 
 export function episodeAskKeyboard(subId: string, torrentId: string): InlineKeyboard {
   return new InlineKeyboard()

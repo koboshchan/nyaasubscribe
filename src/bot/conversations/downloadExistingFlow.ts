@@ -125,7 +125,9 @@ export async function runDownloadExistingFlow(
   const downloader = settings.downloader;
 
   await ctx.reply(`Downloading ${toDownload.length} episode(s)...`);
-  const client = new DownloaderClient(downloader.baseUrl, downloader.username, downloader.password);
+  const client = new DownloaderClient(downloader);
+
+
 
   let succeeded = 0;
   const failures: string[] = [];
