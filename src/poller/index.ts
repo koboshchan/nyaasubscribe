@@ -20,8 +20,9 @@ export function startPoller(bot: Bot<BotContext>, store: Store, adminId: number)
 
   async function downloadItem(client: DownloaderClient, downloader: DownloaderConfig, item: NyaaItem): Promise<void> {
     const token = await client.getToken();
-    await client.addUrl(token, item.magnet, downloader.downloadDirIndex);
+    await client.addUrl(token, item.magnet, downloader.downloadDirIndex, downloader.downloadDirPath);
   }
+
 
   async function sendBulkCatchUpPrompt(sub: Subscription, batchId: string, items: NyaaItem[]): Promise<void> {
     await sendChunkedText(

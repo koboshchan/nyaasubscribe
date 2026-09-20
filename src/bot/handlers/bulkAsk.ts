@@ -33,7 +33,8 @@ export function registerBulkAskHandlers(bot: Bot<BotContext>, store: Store): voi
     for (const item of items) {
       try {
         const token = await client.getToken();
-        await client.addUrl(token, item.magnet, downloader.downloadDirIndex);
+        await client.addUrl(token, item.magnet, downloader.downloadDirIndex, downloader.downloadDirPath);
+
         store.markSeen(subId, item.infoHash);
         store.addDownloadedEpisode(subId, item.episode);
         succeeded++;

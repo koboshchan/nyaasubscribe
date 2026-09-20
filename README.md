@@ -9,7 +9,9 @@ A Telegram bot that watches nyaa.si for new anime episodes from SubsPlease and E
    ```
    BOT_TOKEN=your-telegram-bot-token
    ADMIN_ID=your-telegram-user-id
+   TORRENT_DOWNLOADER=u # 'u' for uTorrent/ubit (default), 'q' for qBittorrent
    ```
+
 
 2. Run it:
 

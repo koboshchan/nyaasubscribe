@@ -5,7 +5,9 @@ export interface DownloaderConfig {
   username: string;
   password: string;
   downloadDirIndex: number;
+  downloadDirPath?: string;
 }
+
 
 export interface Settings {
   downloader: DownloaderConfig | null;

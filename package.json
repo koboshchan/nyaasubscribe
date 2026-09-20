@@ -6,7 +6,9 @@
   "scripts": {
     "build": "esbuild src/index.ts --bundle --minify-whitespace --minify-syntax --platform=node --target=node20 --format=cjs --outfile=dist/bot.js",
     "typecheck": "tsc --noEmit",
+    "test": "tsx --test test/**/*.test.ts",
     "dev": "tsx src/index.ts"
+
   },
   "dependencies": {
     "@grammyjs/conversations": "^1.2.0",

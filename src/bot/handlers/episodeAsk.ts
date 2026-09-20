@@ -29,7 +29,13 @@ export function registerEpisodeAskHandlers(bot: Bot<BotContext>, store: Store): 
         settings.downloader.password,
       );
       const token = await client.getToken();
-      await client.addUrl(token, pending.magnet, settings.downloader.downloadDirIndex);
+      await client.addUrl(
+        token,
+        pending.magnet,
+        settings.downloader.downloadDirIndex,
+        settings.downloader.downloadDirPath,
+      );
+
 
       store.markSeen(subId, pending.infoHash);
       store.addDownloadedEpisode(subId, pending.episode);

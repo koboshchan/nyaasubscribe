@@ -132,7 +132,10 @@ export async function runDownloadExistingFlow(
   for (const item of toDownload) {
     try {
       const token = await conversation.external(() => client.getToken());
-      await conversation.external(() => client.addUrl(token, item.magnet, downloader.downloadDirIndex));
+      await conversation.external(() =>
+        client.addUrl(token, item.magnet, downloader.downloadDirIndex, downloader.downloadDirPath),
+      );
+
 
       if (subscriptionId) {
         const episode = parseReleaseTitle(provider, item.title)?.episode;
