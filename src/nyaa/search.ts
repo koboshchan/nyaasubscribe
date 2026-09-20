@@ -1,9 +1,17 @@
 import type { NyaaItem, Provider } from "./types";
 
-const PROVIDER_USER: Record<Provider, string> = {
+// AnoZu has no entry here - unlike the others, it uploads anonymously (no
+// registered nyaa account to scope a search by), so its releases are found
+// via the generic search plus the "AnoZu" keyword instead, and confirmed by
+// the literal [AnoZu] title tag in titleParser.ts.
+const PROVIDER_USER: Partial<Record<Provider, string>> = {
   subsplease: "subsplease",
   "erai-raws": "erai-raws",
   "tsundere-raws": "Tsundere-Raws",
+};
+
+const PROVIDER_QUERY_PREFIX: Partial<Record<Provider, string>> = {
+  anozu: "AnoZu",
 };
 
 const PAGE_SIZE = 75;
@@ -29,7 +37,12 @@ interface NyaaApiSearchResponse {
 // that cap.
 function searchUrl(provider: Provider, animeName: string, page: number): string {
   const user = PROVIDER_USER[provider];
-  return `https://nyaaapi.onrender.com/nyaa/user/${encodeURIComponent(user)}?q=${encodeURIComponent(animeName)}&page=${page}`;
+  const prefix = PROVIDER_QUERY_PREFIX[provider];
+  const query = prefix ? `${prefix} ${animeName}` : animeName;
+  const base = user
+    ? `https://nyaaapi.onrender.com/nyaa/user/${encodeURIComponent(user)}`
+    : "https://nyaaapi.onrender.com/nyaa";
+  return `${base}?q=${encodeURIComponent(query)}&page=${page}`;
 }
 
 function parseItem(raw: NyaaApiSearchItem): NyaaItem | null {

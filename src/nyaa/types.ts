@@ -1,4 +1,4 @@
-export type Provider = "subsplease" | "erai-raws" | "tsundere-raws";
+export type Provider = "subsplease" | "erai-raws" | "tsundere-raws" | "anozu";
 export type Resolution = "480p" | "720p" | "1080p";
 
 export interface NyaaItem {
@@ -13,6 +13,10 @@ export interface NyaaItem {
 
 export interface ParsedRelease {
   show: string;
+  // AnoZu titles carry both an English name and the original romaji/JP name
+  // (e.g. "... | Toumei na Yoru ni Kakeru Kimi to..."), and either should be
+  // usable as the subscription name.
+  altShow?: string;
   episode: string;
   resolution: Resolution;
 }

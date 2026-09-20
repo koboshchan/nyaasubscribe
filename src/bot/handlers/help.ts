@@ -9,7 +9,9 @@ const HELP_TEXT = [
   "/settings - configure the downloader and poll interval",
   "/help - this message",
   "",
-  "How it works: add a subscription with the exact release title (for example Mushoku Tensei S3), pick a provider (SubsPlease, Erai-raws, or Tsundere-Raws) and a resolution (480p, 720p, or 1080p). The bot polls nyaa.si in the background and automatically sends new matching episodes to your configured downloader.",
+  "How it works: add a subscription with the exact release title (for example Mushoku Tensei S3), pick a provider (SubsPlease, Erai-raws, Tsundere-Raws, or AnoZu) and a resolution (480p, 720p, or 1080p). The bot polls nyaa.si in the background and automatically sends new matching episodes to your configured downloader.",
+  "",
+  "AnoZu titles often carry both an English name and the original name (for example \"Love Unseen Beneath the Clear Night Sky 2026\" and \"Toumei na Yoru ni Kakeru Kimi to, Me ni Mienai Koi wo Shita\") - either one works as the subscription name. Note AnoZu uploads anonymously (no verified account), so matching relies on the [AnoZu] tag in the title rather than an uploader account.",
   "",
   "Use Download Existing from the main menu to bulk-download a show's existing episodes without creating a subscription - useful for shows that already finished airing.",
 ].join("\n");

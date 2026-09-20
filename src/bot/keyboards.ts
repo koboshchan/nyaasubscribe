@@ -20,7 +20,9 @@ export function providerKeyboard(): InlineKeyboard {
     .row()
     .text("Erai-raws", "provider:erai-raws")
     .row()
-    .text("Tsundere-Raws", "provider:tsundere-raws");
+    .text("Tsundere-Raws", "provider:tsundere-raws")
+    .row()
+    .text("AnoZu", "provider:anozu");
 }
 
 export function resolutionKeyboard(): InlineKeyboard {
