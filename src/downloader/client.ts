@@ -2,6 +2,7 @@ import type { DownloaderConfig } from "../store/types";
 import {
   type DownloadDir,
   DownloaderError,
+  TorrentAlreadyExistsError,
   type IDownloaderClient,
   type DownloaderClientType,
   type QBitAuthMethod,
@@ -12,6 +13,7 @@ import { QBitDownloaderClient, type QBitClientOptions } from "./qbit";
 export {
   type DownloadDir,
   DownloaderError,
+  TorrentAlreadyExistsError,
   type IDownloaderClient,
   type DownloaderClientType,
   type QBitAuthMethod,
@@ -76,5 +78,9 @@ export class DownloaderClient implements IDownloaderClient {
 
   addUrl(token: string, magnet: string, dirIndex: number, dirPath?: string): Promise<void> {
     return this.delegate.addUrl(token, magnet, dirIndex, dirPath);
+  }
+
+  hasTorrent(token: string, hashOrMagnet: string): Promise<boolean> {
+    return this.delegate.hasTorrent(token, hashOrMagnet);
   }
 }

@@ -1,7 +1,7 @@
 import type { Bot } from "grammy";
 import type { BotContext } from "../context";
 import type { Store } from "../../store/db";
-import { DownloaderClient } from "../../downloader/client";
+import { DownloaderClient, TorrentAlreadyExistsError } from "../../downloader/client";
 
 export function registerEpisodeAskHandlers(bot: Bot<BotContext>, store: Store): void {
   bot.callbackQuery(/^epdl:([^:]+):(\d+)$/, async (ctx) => {
@@ -33,14 +33,21 @@ export function registerEpisodeAskHandlers(bot: Bot<BotContext>, store: Store): 
         settings.downloader.downloadDirPath,
       );
 
-
       store.markSeen(subId, pending.infoHash);
       store.addDownloadedEpisode(subId, pending.episode);
       store.removePendingAsk(subId, torrentId);
 
       await ctx.editMessageText(`Downloading:\n${pending.title}`);
     } catch (err) {
-      await ctx.editMessageText(`Failed to download: ${(err as Error).message}`);
+      if (err instanceof TorrentAlreadyExistsError) {
+        store.markSeen(subId, pending.infoHash);
+        store.addDownloadedEpisode(subId, pending.episode);
+        store.removePendingAsk(subId, torrentId);
+        await ctx.editMessageText(`Torrent already exists, skipping download:\n${pending.title}`);
+      } else {
+        console.error(`[EpisodeAsk] Failed to download "${pending.title}":`, err);
+        await ctx.editMessageText(`Failed to download: ${(err as Error).message}`);
+      }
     }
   });
 

@@ -2,7 +2,33 @@ import { describe, it, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { UBitDownloaderClient } from "../src/downloader/ubit";
 import { QBitDownloaderClient } from "../src/downloader/qbit";
-import { DownloaderClient, DownloaderError } from "../src/downloader/client";
+import { DownloaderClient, DownloaderError, TorrentAlreadyExistsError } from "../src/downloader/client";
+import { extractInfoHash } from "../src/downloader/hash";
+
+describe("extractInfoHash", () => {
+  it("extracts lowercase hex hash from hex btih magnet", () => {
+    const magnet = "magnet:?xt=urn:btih:245EF029AABBCCDDEEFF00112233445566778899&dn=test";
+    assert.equal(extractInfoHash(magnet), "245ef029aabbccddeeff00112233445566778899");
+  });
+
+  it("extracts lowercase hex hash from base32 btih magnet", () => {
+    const magnet = "magnet:?xt=urn:btih:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&dn=test";
+    assert.equal(extractInfoHash(magnet), "0".repeat(40));
+  });
+
+  it("extracts lowercase hex hash from raw 40-char hex string", () => {
+    assert.equal(
+      extractInfoHash("245EF029AABBCCDDEEFF00112233445566778899"),
+      "245ef029aabbccddeeff00112233445566778899",
+    );
+  });
+
+  it("returns null for invalid inputs", () => {
+    assert.equal(extractInfoHash(""), null);
+    assert.equal(extractInfoHash("not-a-magnet"), null);
+    assert.equal(extractInfoHash("magnet:?xt=urn:unknown:1234"), null);
+  });
+});
 
 describe("UBitDownloaderClient", () => {
   const originalFetch = globalThis.fetch;
@@ -71,6 +97,38 @@ describe("UBitDownloaderClient", () => {
     assert.ok(requestedUrl.includes("action=add-url"));
     assert.ok(requestedUrl.includes("download_dir=1"));
     assert.ok(requestedUrl.includes("path=%2Fcustom%2Fpath"));
+  });
+
+  it("checks if torrent exists in list via hasTorrent", async () => {
+    globalThis.fetch = async (url) => {
+      const u = String(url);
+      if (u.includes("action=list-dirs")) return new Response(JSON.stringify({}), { status: 200 });
+      if (u.includes("list=1")) {
+        return new Response(
+          JSON.stringify({
+            torrents: [
+              ["245ef029aabbccddeeff00112233445566778899", 1, "Torrent 1", 1000, 100],
+              ["0000000000000000000000000000000000000000", 1, "Torrent 2", 1000, 100],
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+      throw new Error(`Unexpected request: ${u}`);
+    };
+
+    const client = new UBitDownloaderClient("http://127.0.0.1:9178", "admin", "secret");
+    const exists = await client.hasTorrent(
+      "fake-token",
+      "magnet:?xt=urn:btih:245EF029AABBCCDDEEFF00112233445566778899",
+    );
+    assert.equal(exists, true);
+
+    const notExists = await client.hasTorrent(
+      "fake-token",
+      "magnet:?xt=urn:btih:1111111111111111111111111111111111111111",
+    );
+    assert.equal(notExists, false);
   });
 });
 
@@ -175,6 +233,86 @@ describe("QBitDownloaderClient - Password Auth", () => {
     await client.addUrl("token", "magnet:?xt=test", 0);
     assert.equal(loginCount, 2);
     assert.equal(addAttempts, 2);
+  });
+
+  it("checks if torrent exists in library via hasTorrent", async () => {
+    globalThis.fetch = async (url) => {
+      const u = String(url);
+      if (u.includes("/api/v2/auth/login")) {
+        return new Response("Ok.", {
+          status: 200,
+          headers: { "set-cookie": "SID=test-sid; path=/" },
+        });
+      }
+      if (u.includes("/api/v2/torrents/info")) {
+        if (u.includes("245ef029aabbccddeeff00112233445566778899")) {
+          return new Response(
+            JSON.stringify([{ hash: "245ef029aabbccddeeff00112233445566778899", name: "Test Torrent" }]),
+            { status: 200 },
+          );
+        }
+        return new Response(JSON.stringify([]), { status: 200 });
+      }
+      throw new Error(`Unexpected url: ${u}`);
+    };
+
+    const client = new QBitDownloaderClient({
+      baseUrl: "http://127.0.0.1:8080",
+      username: "admin",
+      password: "pass",
+    });
+
+    const exists = await client.hasTorrent(
+      "token",
+      "magnet:?xt=urn:btih:245EF029AABBCCDDEEFF00112233445566778899",
+    );
+    assert.equal(exists, true);
+
+    const notExists = await client.hasTorrent(
+      "token",
+      "magnet:?xt=urn:btih:9999999999999999999999999999999999999999",
+    );
+    assert.equal(notExists, false);
+  });
+
+  it("throws TorrentAlreadyExistsError on 409 and verifies library presence", async () => {
+    let checkedLibrary = false;
+    globalThis.fetch = async (url) => {
+      const u = String(url);
+      if (u.includes("/api/v2/auth/login")) {
+        return new Response("Ok.", {
+          status: 200,
+          headers: { "set-cookie": "SID=test-sid; path=/" },
+        });
+      }
+      if (u.includes("/api/v2/torrents/add")) {
+        return new Response("Torrent already in list", { status: 409 });
+      }
+      if (u.includes("/api/v2/torrents/info")) {
+        checkedLibrary = true;
+        return new Response(
+          JSON.stringify([{ hash: "245ef029aabbccddeeff00112233445566778899", name: "Test" }]),
+          { status: 200 },
+        );
+      }
+      throw new Error(`Unexpected url: ${u}`);
+    };
+
+    const client = new QBitDownloaderClient({
+      baseUrl: "http://127.0.0.1:8080",
+      username: "admin",
+      password: "pass",
+    });
+
+    await assert.rejects(
+      () => client.addUrl("token", "magnet:?xt=urn:btih:245ef029aabbccddeeff00112233445566778899", 0),
+      (err: unknown) => {
+        assert.ok(err instanceof TorrentAlreadyExistsError);
+        assert.match((err as Error).message, /already exists in client library/);
+        return true;
+      },
+    );
+    assert.equal(checkedLibrary, true);
   });
 });
 

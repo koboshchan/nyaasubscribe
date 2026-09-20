@@ -145,6 +145,7 @@ export function configureDownloaderConversation(store: Store) {
         reply_markup: backToMainKeyboard(),
       });
     } catch (err) {
+      console.error("[ConfigureDownloader] Connection test failed:", err);
       await ctx.reply(`Connection test failed: ${(err as Error).message}`, {
         reply_markup: backToMainKeyboard(),
       });

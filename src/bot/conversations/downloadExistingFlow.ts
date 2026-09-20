@@ -4,7 +4,7 @@ import type { Store } from "../../store/db";
 import type { NyaaItem, Provider, Resolution } from "../../nyaa/types";
 import { fetchProviderFeed } from "../../nyaa/search";
 import { matchesSubscription, parseReleaseTitle, isWebRip } from "../../nyaa/titleParser";
-import { DownloaderClient } from "../../downloader/client";
+import { DownloaderClient, TorrentAlreadyExistsError } from "../../downloader/client";
 import { backToMainKeyboard, confirmDownloadAllKeyboard } from "../keyboards";
 import { sendChunkedText } from "../../util/chunkedText";
 
@@ -25,6 +25,7 @@ export async function runDownloadExistingFlow(
   try {
     items = await conversation.external(() => fetchProviderFeed(provider, animeName));
   } catch (err) {
+    console.error(`[DownloadExisting] Feed check failed for "${animeName}":`, err);
     await ctx.reply(`Feed check failed: ${(err as Error).message}`, { reply_markup: backToMainKeyboard() });
     return;
   }
@@ -148,7 +149,19 @@ export async function runDownloadExistingFlow(
       }
       succeeded++;
     } catch (err) {
-      failures.push(`${item.title}: ${(err as Error).message}`);
+      if (err instanceof TorrentAlreadyExistsError) {
+        if (subscriptionId) {
+          const episode = parseReleaseTitle(provider, item.title)?.episode;
+          await conversation.external(() => {
+            store.markSeen(subscriptionId, item.infoHash);
+            if (episode) store.addDownloadedEpisode(subscriptionId, episode);
+          });
+        }
+        failures.push(`${item.title}: Torrent already exists, skipping download.`);
+      } else {
+        console.error(`[DownloadExisting] Failed to download "${item.title}":`, err);
+        failures.push(`${item.title}: ${(err as Error).message}`);
+      }
     }
   }
 

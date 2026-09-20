@@ -3,7 +3,7 @@ import type { BotContext } from "../bot/context";
 import type { Store } from "../store/db";
 import { fetchProviderFeed } from "../nyaa/search";
 import { matchesSubscription, parseReleaseTitle, isWebRip } from "../nyaa/titleParser";
-import { DownloaderClient } from "../downloader/client";
+import { DownloaderClient, TorrentAlreadyExistsError } from "../downloader/client";
 import { episodeAskKeyboard, bulkAskKeyboard } from "../bot/keyboards";
 import { sendChunkedText } from "../util/chunkedText";
 import type { DownloaderConfig, Subscription } from "../store/types";
@@ -130,16 +130,29 @@ export function startPoller(bot: Bot<BotContext>, store: Store, adminId: number)
               store.clearPendingAsksForEpisode(sub.id, episode);
               await bot.api.sendMessage(adminId, `New episode: ${item.title}\nAdded to downloads.`);
             } catch (err) {
-              await bot.api.sendMessage(
-                adminId,
-                `Failed to download ${item.title}: ${(err as Error).message}`,
-              );
+              if (err instanceof TorrentAlreadyExistsError) {
+                store.markSeen(sub.id, item.infoHash);
+                store.addDownloadedEpisode(sub.id, episode);
+                store.clearPendingAsksForEpisode(sub.id, episode);
+                await bot.api.sendMessage(
+                  adminId,
+                  `Torrent already exists for ${item.title}, skipping download.`,
+                );
+              } else {
+                console.error(`[Poller] Failed to download "${item.title}":`, err);
+                await bot.api.sendMessage(
+                  adminId,
+                  `Failed to download ${item.title}: ${(err as Error).message}`,
+                );
+              }
             }
           }
         } catch (err) {
           console.error(`Feed check failed for subscription "${sub.animeName}":`, err);
         }
       }
+    } catch (err) {
+      console.error("[Poller] Error during poll cycle:", err);
     } finally {
       running = false;
     }
@@ -148,7 +161,9 @@ export function startPoller(bot: Bot<BotContext>, store: Store, adminId: number)
   function scheduleNext(): void {
     const minutes = store.getSettings().pollIntervalMinutes;
     setTimeout(() => {
-      void pollOnce().finally(scheduleNext);
+      void pollOnce()
+        .catch((err) => console.error("[Poller] Unexpected poll error:", err))
+        .finally(scheduleNext);
     }, minutes * 60_000);
   }
 

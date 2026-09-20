@@ -1,4 +1,5 @@
 import { type DownloadDir, DownloaderError, type IDownloaderClient } from "./types";
+import { extractInfoHash } from "./hash";
 
 interface ListDirsResponse {
   "download-dirs"?: DownloadDir[];
@@ -80,5 +81,19 @@ export class UBitDownloaderClient implements IDownloaderClient {
     if (!res.ok) {
       throw new DownloaderError(`add-url failed: ${res.status}`);
     }
+  }
+
+  async hasTorrent(token: string, hashOrMagnet: string): Promise<boolean> {
+    const hash = extractInfoHash(hashOrMagnet);
+    if (!hash) return false;
+    const base = this.normalizedBase();
+    const res = await fetch(
+      `${base}/gui/?token=${encodeURIComponent(token)}&list=1&t=${Date.now()}`,
+      { headers: this.requestHeaders() },
+    );
+    if (!res.ok) return false;
+    const json = (await res.json()) as { torrents?: [string, ...unknown[]][] };
+    if (!json.torrents || !Array.isArray(json.torrents)) return false;
+    return json.torrents.some((t) => typeof t[0] === "string" && t[0].toLowerCase() === hash.toLowerCase());
   }
 }

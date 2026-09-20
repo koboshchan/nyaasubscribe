@@ -1,7 +1,7 @@
 import type { Bot } from "grammy";
 import type { BotContext } from "../context";
 import type { Store } from "../../store/db";
-import { DownloaderClient } from "../../downloader/client";
+import { DownloaderClient, TorrentAlreadyExistsError } from "../../downloader/client";
 import { sendChunkedText } from "../../util/chunkedText";
 
 export function registerBulkAskHandlers(bot: Bot<BotContext>, store: Store): void {
@@ -40,7 +40,14 @@ export function registerBulkAskHandlers(bot: Bot<BotContext>, store: Store): voi
         store.addDownloadedEpisode(subId, item.episode);
         succeeded++;
       } catch (err) {
-        failures.push(`${item.title}: ${(err as Error).message}`);
+        if (err instanceof TorrentAlreadyExistsError) {
+          store.markSeen(subId, item.infoHash);
+          store.addDownloadedEpisode(subId, item.episode);
+          failures.push(`${item.title}: Torrent already exists, skipping download.`);
+        } else {
+          console.error(`[BulkAsk] Failed to download "${item.title}":`, err);
+          failures.push(`${item.title}: ${(err as Error).message}`);
+        }
       }
     }
     store.removePendingAsksByBatch(subId, batchId);

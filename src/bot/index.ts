@@ -36,7 +36,10 @@ export function createBot(token: string, adminId: number, store: Store): Bot<Bot
   registerBulkAskHandlers(bot, store);
 
   bot.catch((err) => {
-    console.error("Bot error:", err.error);
+    console.error("Bot error:", err.error ?? err);
+    if (err.stack) {
+      console.error(err.stack);
+    }
   });
 
   return bot;

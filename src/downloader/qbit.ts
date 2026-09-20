@@ -1,4 +1,5 @@
-import { type DownloadDir, DownloaderError, type IDownloaderClient } from "./types";
+import { type DownloadDir, DownloaderError, TorrentAlreadyExistsError, type IDownloaderClient } from "./types";
+import { extractInfoHash } from "./hash";
 
 interface QBitCategory {
   name?: string;
@@ -77,16 +78,23 @@ export class QBitDownloaderClient implements IDownloaderClient {
         headers: this.requestHeaders(),
       });
       if (res.status === 401 || res.status === 403) {
-        throw new DownloaderError("API token authentication failed: unauthorized");
+        const errMsg = `API token authentication failed: unauthorized (HTTP ${res.status})`;
+        console.error(`[qBittorrent] ${errMsg}`);
+        throw new DownloaderError(errMsg);
       }
       if (!res.ok) {
-        throw new DownloaderError(`API token verification failed: ${res.status}`);
+        const errorText = await res.text().catch(() => "");
+        const errMsg = `API token verification failed: ${res.status}${errorText ? ` - ${errorText.trim()}` : ""}`;
+        console.error(`[qBittorrent] ${errMsg}`);
+        throw new DownloaderError(errMsg);
       }
       return this.apiToken;
     }
 
     if (!this.username || !this.password) {
-      throw new DownloaderError("Username and password are required for cookie authentication");
+      const errMsg = "Username and password are required for cookie authentication";
+      console.error(`[qBittorrent] ${errMsg}`);
+      throw new DownloaderError(errMsg);
     }
 
     const body = new URLSearchParams({
@@ -104,20 +112,28 @@ export class QBitDownloaderClient implements IDownloaderClient {
     });
 
     if (res.status === 403) {
-      throw new DownloaderError("Login failed: IP banned for too many failed login attempts");
+      const errMsg = "Login failed: IP banned for too many failed login attempts";
+      console.error(`[qBittorrent] ${errMsg}`);
+      throw new DownloaderError(errMsg);
     }
     if (!res.ok) {
-      throw new DownloaderError(`Login request failed: ${res.status}`);
+      const errorText = await res.text().catch(() => "");
+      const errMsg = `Login request failed: ${res.status}${errorText ? ` - ${errorText.trim()}` : ""}`;
+      console.error(`[qBittorrent] ${errMsg}`);
+      throw new DownloaderError(errMsg);
     }
 
     this.captureCookie(res);
     const text = await res.text();
     if (text.trim() === "Fails." || !this.cookie) {
-      throw new DownloaderError("Login failed: invalid username or password");
+      const errMsg = "Login failed: invalid username or password";
+      console.error(`[qBittorrent] ${errMsg}`);
+      throw new DownloaderError(errMsg);
     }
 
     return this.cookie;
   }
+
 
   private async fetchWithAuth(url: string, init?: RequestInit): Promise<Response> {
     if (this.apiToken) {
@@ -227,13 +243,50 @@ export class QBitDownloaderClient implements IDownloaderClient {
       body: formData,
     });
 
+    if (res.status === 409) {
+      const inLibrary = await this.hasTorrent(_token, magnet).catch((err) => {
+        console.error("[qBittorrent] Failed to check library for torrent:", err);
+        return false;
+      });
+      throw new TorrentAlreadyExistsError(
+        inLibrary
+          ? "Torrent already exists in client library"
+          : "Torrent already exists in client (409 Conflict)",
+      );
+    }
+
     if (!res.ok) {
-      throw new DownloaderError(`add-url failed: ${res.status}`);
+      const errorText = await res.text().catch(() => "");
+      const errMsg = `add-url failed: ${res.status}${errorText ? ` - ${errorText.trim()}` : ""}`;
+      console.error(`[qBittorrent] ${errMsg} for magnet: ${magnet}`);
+      throw new DownloaderError(errMsg);
     }
 
     const text = await res.text();
     if (text.trim() === "Fails.") {
-      throw new DownloaderError("Failed to add torrent: qBittorrent rejected the request");
+      const errMsg = "Failed to add torrent: qBittorrent rejected the request ('Fails.')";
+      console.error(`[qBittorrent] ${errMsg} for magnet: ${magnet}`);
+      throw new DownloaderError(errMsg);
     }
   }
+
+  async hasTorrent(_token: string, hashOrMagnet: string): Promise<boolean> {
+    const hash = extractInfoHash(hashOrMagnet);
+    const base = this.normalizedBase();
+    const url = hash
+      ? `${base}/api/v2/torrents/info?hashes=${encodeURIComponent(hash)}`
+      : `${base}/api/v2/torrents/info`;
+
+    const res = await this.fetchWithAuth(url);
+    if (!res.ok) {
+      throw new DownloaderError(`Failed to fetch torrent list from qBittorrent: ${res.status}`);
+    }
+    const data = (await res.json()) as Array<{ hash?: string; name?: string }>;
+    if (!Array.isArray(data)) return false;
+    if (hash) {
+      return data.some((t) => t.hash?.toLowerCase() === hash.toLowerCase());
+    }
+    return data.length > 0;
+  }
 }
+
