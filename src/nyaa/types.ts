@@ -1,4 +1,4 @@
-export type Provider = "subsplease" | "erai-raws" | "tsundere-raws" | "anozu";
+export type Provider = "subsplease" | "erai-raws" | "tsundere-raws" | "anozu" | "toonshub";
 export type Resolution = "480p" | "720p" | "1080p";
 
 export interface NyaaItem {

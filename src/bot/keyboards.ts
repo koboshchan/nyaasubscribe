@@ -22,7 +22,9 @@ export function providerKeyboard(): InlineKeyboard {
     .row()
     .text("Tsundere-Raws", "provider:tsundere-raws")
     .row()
-    .text("AnoZu", "provider:anozu");
+    .text("AnoZu", "provider:anozu")
+    .row()
+    .text("ToonsHub", "provider:toonshub");
 }
 
 export function resolutionKeyboard(): InlineKeyboard {
