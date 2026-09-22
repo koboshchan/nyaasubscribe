@@ -96,6 +96,7 @@ export async function runDownloadExistingFlow(
   const confirmCtx = await conversation.waitForCallbackQuery(/^dlall:(yes|no)$/);
   const wantsDownload = confirmCtx.callbackQuery.data === "dlall:yes";
   await confirmCtx.answerCallbackQuery();
+  await confirmCtx.editMessageReplyMarkup({ reply_markup: undefined });
 
   if (!wantsDownload) {
     if (subscriptionId) {
@@ -128,13 +129,19 @@ export async function runDownloadExistingFlow(
   await ctx.reply(`Downloading ${toDownload.length} episode(s)...`);
   const client = new DownloaderClient(downloader);
 
-
+  let token = "";
+  try {
+    token = await conversation.external(() => client.getToken());
+  } catch (err) {
+    console.error("[DownloadExisting] Failed to get downloader token:", err);
+    await ctx.reply(`Download failed: ${(err as Error).message}`, { reply_markup: backToMainKeyboard() });
+    return;
+  }
 
   let succeeded = 0;
   const failures: string[] = [];
   for (const item of toDownload) {
     try {
-      const token = await conversation.external(() => client.getToken());
       await conversation.external(() =>
         client.addUrl(token, item.magnet, downloader.downloadDirIndex, downloader.downloadDirPath),
       );

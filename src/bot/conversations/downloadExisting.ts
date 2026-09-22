@@ -6,8 +6,11 @@ import { backToMainKeyboard } from "../keyboards";
 
 export function downloadExistingConversation(store: Store) {
   return async function downloadExisting(conversation: Conversation<BotContext>, ctx: BotContext): Promise<void> {
-    const subscriptionId = ctx.session.pendingDownloadExistingId;
-    ctx.session.pendingDownloadExistingId = undefined;
+    const subscriptionId = await conversation.external(() => {
+      const id = ctx.session.pendingDownloadExistingId;
+      ctx.session.pendingDownloadExistingId = undefined;
+      return id;
+    });
     if (!subscriptionId) {
       await ctx.reply("No subscription selected.", { reply_markup: backToMainKeyboard() });
       return;

@@ -103,7 +103,7 @@ export function startPoller(bot: Bot<BotContext>, store: Store, adminId: number)
           }
 
           if (downloadEligible.length > BULK_CATCH_UP_THRESHOLD) {
-            const batchId = crypto.randomUUID();
+            const batchId = crypto.randomUUID().slice(0, 8);
             for (const { item, episode } of downloadEligible) {
               store.addPendingAsk(sub.id, {
                 torrentId: item.torrentId,

@@ -18,14 +18,16 @@ export function addSubscriptionConversation(store: Store) {
     }
     const { animeName, provider, resolution } = selection;
 
-    const alreadySubscribed = store
-      .listSubscriptions()
-      .some(
-        (sub) =>
-          sub.provider === provider &&
-          sub.resolution === resolution &&
-          sub.animeName.toLowerCase() === animeName.toLowerCase(),
-      );
+    const alreadySubscribed = await conversation.external(() =>
+      store
+        .listSubscriptions()
+        .some(
+          (sub) =>
+            sub.provider === provider &&
+            sub.resolution === resolution &&
+            sub.animeName.toLowerCase() === animeName.toLowerCase(),
+        ),
+    );
     if (alreadySubscribed) {
       await ctx.reply(
         `You're already subscribed to "${animeName}" (${provider}, ${resolution}).`,
@@ -34,18 +36,20 @@ export function addSubscriptionConversation(store: Store) {
       return;
     }
 
-    const subscription = {
-      id: crypto.randomUUID(),
-      animeName,
-      provider,
-      resolution,
-      createdAt: new Date().toISOString(),
-      seenHashes: [] as string[],
-      downloadedEpisodes: [] as string[],
-      pendingAsks: [] as PendingAsk[],
-    };
-
-    await conversation.external(() => store.addSubscription(subscription));
+    const subscription = await conversation.external(() => {
+      const sub = {
+        id: crypto.randomUUID(),
+        animeName,
+        provider,
+        resolution,
+        createdAt: new Date().toISOString(),
+        seenHashes: [] as string[],
+        downloadedEpisodes: [] as string[],
+        pendingAsks: [] as PendingAsk[],
+      };
+      store.addSubscription(sub);
+      return sub;
+    });
 
     await ctx.reply(
       `Subscribed:\n${animeName}\nProvider: ${provider}\nResolution: ${resolution}\n\nChecking for existing releases...`,
