@@ -8,6 +8,7 @@ import {
 } from "../src/nyaa/view";
 import {
   handleNyaaUrls,
+  extractTorrentIdsFromContext,
   syncSubscriptionsWithDownloadedTorrent,
 } from "../src/bot/handlers/nyaaUrl";
 import type { Store } from "../src/store/db";
@@ -52,6 +53,31 @@ https://nyaa.si/view/100001
     assert.deepEqual(extractNyaaTorrentIds("https://nyaa.si/user/subsplease"), []);
     assert.deepEqual(extractNyaaTorrentIds("https://nyaa.si/?q=frieren"), []);
     assert.deepEqual(extractNyaaTorrentIds(""), []);
+  });
+});
+
+describe("extractTorrentIdsFromContext", () => {
+  it("extracts IDs from text, captions, and text_link entities", () => {
+    const mockCtx = {
+      message: {
+        text: "Direct URL: https://nyaa.si/view/111111",
+        caption: "Caption URL: https://nyaa.si/view/222222",
+        entities: [
+          { type: "text_link", url: "https://nyaa.si/view/333333" },
+        ],
+      },
+    } as unknown as BotContext;
+
+    const ids = extractTorrentIdsFromContext(mockCtx);
+    assert.deepEqual(ids, ["111111", "222222", "333333"]);
+  });
+
+  it("returns empty array when no message or URLs present", () => {
+    assert.deepEqual(extractTorrentIdsFromContext({} as unknown as BotContext), []);
+    assert.deepEqual(
+      extractTorrentIdsFromContext({ message: { text: "just chatting" } } as unknown as BotContext),
+      [],
+    );
   });
 });
 
@@ -219,7 +245,7 @@ describe("handleNyaaUrls", () => {
       getSettings: (): Settings => ({ downloader: null, pollIntervalMinutes: 10 }),
     } as unknown as Store;
 
-    await handleNyaaUrls(mockCtx, mockStore, "https://nyaa.si/view/123456");
+    await handleNyaaUrls(mockCtx, mockStore, ["123456"]);
     assert.equal(replies.length, 1);
     assert.match(replies[0], /Downloader is not configured/);
   });

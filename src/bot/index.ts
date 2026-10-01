@@ -23,6 +23,12 @@ export function createBot(token: string, adminId: number, store: Store): Bot<Bot
   });
 
   bot.use(session({ initial: (): SessionData => ({}) }));
+
+  // Register Nyaa URL handler BEFORE conversations so that any URL
+  // sent directly to the chat without a command is processed immediately,
+  // even if an active conversation is waiting for text input.
+  registerNyaaUrlHandlers(bot, store);
+
   bot.use(conversations());
   bot.use(createConversation(addSubscriptionConversation(store), "addSubscription"));
   bot.use(createConversation(configureDownloaderConversation(store), "configureDownloader"));
@@ -35,7 +41,6 @@ export function createBot(token: string, adminId: number, store: Store): Bot<Bot
   registerHelpHandlers(bot);
   registerEpisodeAskHandlers(bot, store);
   registerBulkAskHandlers(bot, store);
-  registerNyaaUrlHandlers(bot, store);
 
   bot.catch((err) => {
     console.error("Bot error:", err.error ?? err);

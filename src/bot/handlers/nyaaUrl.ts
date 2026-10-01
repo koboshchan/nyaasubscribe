@@ -21,8 +21,22 @@ export function syncSubscriptionsWithDownloadedTorrent(
   }
 }
 
-export async function handleNyaaUrls(ctx: BotContext, store: Store, text: string): Promise<void> {
-  const ids = extractNyaaTorrentIds(text);
+export function extractTorrentIdsFromContext(ctx: BotContext): string[] {
+  const msg = ctx.message;
+  if (!msg) return [];
+
+  const text = [msg.text, msg.caption].filter(Boolean).join("\n");
+  const allEntities = [...(msg.entities ?? []), ...(msg.caption_entities ?? [])];
+  const entityUrls = allEntities
+    .filter((e): e is typeof e & { url: string } => e.type === "text_link" && "url" in e && typeof e.url === "string")
+    .map((e) => e.url)
+    .join("\n");
+
+  const combined = `${text}\n${entityUrls}`;
+  return extractNyaaTorrentIds(combined);
+}
+
+export async function handleNyaaUrls(ctx: BotContext, store: Store, ids: string[]): Promise<void> {
   if (ids.length === 0) return;
 
   const settings = store.getSettings();
@@ -69,18 +83,39 @@ export async function handleNyaaUrls(ctx: BotContext, store: Store, text: string
 }
 
 export function registerNyaaUrlHandlers(bot: Bot<BotContext>, store: Store): void {
-  const NYAA_URL_REGEX = /(?:https?:\/\/)?(?:www\.)?nyaa\.si\/view\/(\d+)/i;
+  // 1. Explicit /download or /dl command with URL or torrent ID
+  bot.command(["download", "dl"], async (ctx) => {
+    const text = ctx.message?.text ?? "";
+    const arg = text.replace(/^\/(?:download|dl)(?:@\w+)?\s*/i, "").trim();
+    let ids = extractTorrentIdsFromContext(ctx);
+    if (ids.length === 0 && /^\d+$/.test(arg)) {
+      ids = [arg];
+    }
 
-  bot.hears(NYAA_URL_REGEX, async (ctx) => {
-    if (!ctx.message?.text) return;
-    await handleNyaaUrls(ctx, store, ctx.message.text);
-  });
-
-  bot.on("message:caption", async (ctx, next) => {
-    if (ctx.message.caption && NYAA_URL_REGEX.test(ctx.message.caption)) {
-      await handleNyaaUrls(ctx, store, ctx.message.caption);
+    if (ids.length === 0) {
+      await ctx.reply("Please provide a Nyaa URL or torrent ID, for example:\n/download https://nyaa.si/view/1800000");
       return;
     }
+
+    await handleNyaaUrls(ctx, store, ids);
+  });
+
+  // 2. Direct message handler: if any message (sent without a command, or with caption)
+  // contains a nyaa view URL, process and add it immediately
+  bot.on("message", async (ctx, next) => {
+    const text = ctx.message?.text ?? "";
+    if (/^\/(?:download|dl)(?:@\w+)?\b/i.test(text)) {
+      // Handled by bot.command above
+      await next();
+      return;
+    }
+
+    const ids = extractTorrentIdsFromContext(ctx);
+    if (ids.length > 0) {
+      await handleNyaaUrls(ctx, store, ids);
+      return;
+    }
+
     await next();
   });
 }
