@@ -45,6 +45,7 @@ export class UBitDownloaderClient implements IDownloaderClient {
     const base = this.normalizedBase();
     const res = await fetch(`${base}/gui/token.html?t=${Date.now()}`, {
       headers: this.requestHeaders(),
+      signal: AbortSignal.timeout(10000),
     });
     if (!res.ok) {
       throw new DownloaderError(`Token request failed: ${res.status}`);
@@ -62,7 +63,10 @@ export class UBitDownloaderClient implements IDownloaderClient {
     const base = this.normalizedBase();
     const res = await fetch(
       `${base}/gui/?token=${encodeURIComponent(token)}&action=list-dirs&t=${Date.now()}`,
-      { headers: this.requestHeaders() },
+      {
+        headers: this.requestHeaders(),
+        signal: AbortSignal.timeout(10000),
+      },
     );
     if (!res.ok) {
       throw new DownloaderError(`list-dirs failed: ${res.status}`);
@@ -76,7 +80,10 @@ export class UBitDownloaderClient implements IDownloaderClient {
     const pathParam = dirPath ? encodeURIComponent(dirPath) : "";
     const res = await fetch(
       `${base}/gui/?token=${encodeURIComponent(token)}&action=add-url&s=${encodeURIComponent(magnet)}&download_dir=${dirIndex}&path=${pathParam}&t=${Date.now()}`,
-      { headers: this.requestHeaders() },
+      {
+        headers: this.requestHeaders(),
+        signal: AbortSignal.timeout(15000),
+      },
     );
     if (!res.ok) {
       throw new DownloaderError(`add-url failed: ${res.status}`);
@@ -89,7 +96,10 @@ export class UBitDownloaderClient implements IDownloaderClient {
     const base = this.normalizedBase();
     const res = await fetch(
       `${base}/gui/?token=${encodeURIComponent(token)}&list=1&t=${Date.now()}`,
-      { headers: this.requestHeaders() },
+      {
+        headers: this.requestHeaders(),
+        signal: AbortSignal.timeout(10000),
+      },
     );
     if (!res.ok) return false;
     const json = (await res.json()) as { torrents?: [string, ...unknown[]][] };

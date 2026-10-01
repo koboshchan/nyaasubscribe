@@ -8,7 +8,7 @@ RUN npm run build
 FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
-COPY --from=builder /app/dist/bot.js ./bot.js
+COPY --from=builder /app/dist/bot.cjs ./bot.cjs
 RUN mkdir -p /data
 VOLUME /data
-CMD ["node", "bot.js"]
+CMD ["node", "bot.cjs"]

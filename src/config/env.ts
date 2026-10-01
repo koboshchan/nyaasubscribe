@@ -4,6 +4,14 @@ export interface Env {
 }
 
 export function loadEnv(): Env {
+  if (!process.env.BOT_TOKEN && typeof process.loadEnvFile === "function") {
+    try {
+      process.loadEnvFile();
+    } catch {
+      // Ignore if .env doesn't exist
+    }
+  }
+
   const botToken = process.env.BOT_TOKEN;
   const adminIdRaw = process.env.ADMIN_ID;
 

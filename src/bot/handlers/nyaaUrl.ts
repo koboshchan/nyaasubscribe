@@ -49,11 +49,19 @@ export async function handleNyaaUrls(ctx: BotContext, store: Store, ids: string[
   const client = new DownloaderClient(downloader);
 
   for (const id of ids) {
+    try {
+      await ctx.replyWithChatAction("typing");
+    } catch {
+      // Ignore if chat action fails
+    }
+
+    console.log(`[NyaaURL] Processing torrent #${id}...`);
+
     let details;
     try {
       details = await fetchNyaaView(id);
     } catch (err) {
-      console.error(`Failed to fetch Nyaa torrent #${id}:`, err);
+      console.error(`[NyaaURL] Failed to fetch Nyaa torrent #${id}:`, err);
       await ctx.reply(`Failed to fetch torrent #${id}: ${(err as Error).message}`);
       continue;
     }
@@ -63,19 +71,22 @@ export async function handleNyaaUrls(ctx: BotContext, store: Store, ids: string[
       const inLibrary = await client.hasTorrent(token, details.infoHash).catch(() => false);
       if (inLibrary) {
         syncSubscriptionsWithDownloadedTorrent(store, details);
+        console.log(`[NyaaURL] Torrent already in library: "${details.title}"`);
         await ctx.reply(`Torrent already exists in client library, skipping download:\n${details.title}`);
         continue;
       }
 
       await client.addUrl(token, details.magnet, downloader.downloadDirIndex, downloader.downloadDirPath);
       syncSubscriptionsWithDownloadedTorrent(store, details);
+      console.log(`[NyaaURL] Added to downloads: "${details.title}"`);
       await ctx.reply(`Added to downloads:\n${details.title}`);
     } catch (err) {
       if (err instanceof TorrentAlreadyExistsError) {
         syncSubscriptionsWithDownloadedTorrent(store, details);
+        console.log(`[NyaaURL] Torrent already exists (409): "${details.title}"`);
         await ctx.reply(`Torrent already exists in client library, skipping download:\n${details.title}`);
       } else {
-        console.error(`Failed to download "${details.title}":`, err);
+        console.error(`[NyaaURL] Failed to download "${details.title}":`, err);
         await ctx.reply(`Failed to download "${details.title}": ${(err as Error).message}`);
       }
     }

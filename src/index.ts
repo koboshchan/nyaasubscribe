@@ -3,7 +3,16 @@ import { Store } from "./store/db";
 import { createBot } from "./bot/index";
 import { startPoller } from "./poller/index";
 
+process.on("unhandledRejection", (reason) => {
+  console.error("Unhandled Rejection:", reason);
+});
+
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught Exception:", err);
+});
+
 async function main(): Promise<void> {
+  console.log("Starting NyaaSubscribe...");
   const env = loadEnv();
   const store = new Store();
   const bot = createBot(env.botToken, env.adminId, store);
@@ -11,7 +20,9 @@ async function main(): Promise<void> {
   startPoller(bot, store, env.adminId);
 
   await bot.start({
-    onStart: () => console.log("Bot started"),
+    onStart: (botInfo) => {
+      console.log(`Logged in as @${botInfo.username}`);
+    },
   });
 }
 

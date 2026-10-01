@@ -76,6 +76,7 @@ export class QBitDownloaderClient implements IDownloaderClient {
       // For token auth, verify that the token works
       const res = await fetch(`${base}/api/v2/app/version`, {
         headers: this.requestHeaders(),
+        signal: AbortSignal.timeout(10000),
       });
       if (res.status === 401 || res.status === 403) {
         const errMsg = `API token authentication failed: unauthorized (HTTP ${res.status})`;
@@ -109,6 +110,7 @@ export class QBitDownloaderClient implements IDownloaderClient {
         "Content-Type": "application/x-www-form-urlencoded",
       },
       body: body.toString(),
+      signal: AbortSignal.timeout(10000),
     });
 
     if (res.status === 403) {
@@ -136,9 +138,11 @@ export class QBitDownloaderClient implements IDownloaderClient {
 
 
   private async fetchWithAuth(url: string, init?: RequestInit): Promise<Response> {
+    const signal = init?.signal ?? AbortSignal.timeout(15000);
     if (this.apiToken) {
       const res = await fetch(url, {
         ...init,
+        signal,
         headers: {
           ...this.requestHeaders(),
           ...(init?.headers as Record<string, string> | undefined),
@@ -155,6 +159,7 @@ export class QBitDownloaderClient implements IDownloaderClient {
     }
     let res = await fetch(url, {
       ...init,
+      signal,
       headers: {
         ...this.requestHeaders(),
         ...(init?.headers as Record<string, string> | undefined),
@@ -166,6 +171,7 @@ export class QBitDownloaderClient implements IDownloaderClient {
       await this.getToken();
       res = await fetch(url, {
         ...init,
+        signal,
         headers: {
           ...this.requestHeaders(),
           ...(init?.headers as Record<string, string> | undefined),
