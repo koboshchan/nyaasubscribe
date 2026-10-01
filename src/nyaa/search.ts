@@ -70,7 +70,9 @@ export async function fetchProviderFeed(provider: Provider, animeName: string): 
   const items: NyaaItem[] = [];
 
   for (let page = 1; page <= MAX_PAGES; page++) {
-    const res = await fetch(searchUrl(provider, animeName, page));
+    const res = await fetch(searchUrl(provider, animeName, page), {
+      signal: AbortSignal.timeout(15000),
+    });
     if (!res.ok) {
       throw new Error(`nyaaapi search failed: ${res.status}`);
     }

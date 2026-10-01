@@ -17,16 +17,27 @@ async function main(): Promise<void> {
   const store = new Store();
   const bot = createBot(env.botToken, env.adminId, store);
 
+  console.log("Connecting to Telegram API...");
+  const me = await bot.api.getMe();
+  console.log(`Logged in as @${me.username} (ID: ${me.id})`);
+  bot.botInfo = me;
+
+  try {
+    await bot.api.deleteWebhook({ drop_pending_updates: false });
+  } catch (err) {
+    console.error("Warning: deleteWebhook failed:", err);
+  }
+
   startPoller(bot, store, env.adminId);
 
   await bot.start({
     onStart: (botInfo) => {
-      console.log(`Logged in as @${botInfo.username}`);
+      console.log(`Bot updates active as @${botInfo.username}`);
     },
   });
 }
 
 main().catch((err) => {
-  console.error("Fatal error:", err);
+  console.error("Fatal startup error:", err);
   process.exit(1);
 });

@@ -12,18 +12,18 @@ export function registerBulkAskHandlers(bot: Bot<BotContext>, store: Store): voi
 
     const items = store.getPendingAsksByBatch(subId, batchId);
     if (items.length === 0) {
-      await ctx.answerCallbackQuery({ text: "This batch is no longer pending." });
+      await ctx.answerCallbackQuery({ text: "This batch is no longer pending." }).catch(() => {});
       return;
     }
 
     const settings = store.getSettings();
     if (!settings.downloader) {
-      await ctx.answerCallbackQuery({ text: "Downloader is not configured." });
+      await ctx.answerCallbackQuery({ text: "Downloader is not configured." }).catch(() => {});
       return;
     }
     const downloader = settings.downloader;
 
-    await ctx.answerCallbackQuery({ text: "Downloading..." });
+    await ctx.answerCallbackQuery({ text: "Downloading..." }).catch(() => {});
     await ctx.editMessageText(`Downloading ${items.length} episode(s)...`);
 
     const client = new DownloaderClient(downloader);
@@ -66,7 +66,7 @@ export function registerBulkAskHandlers(bot: Bot<BotContext>, store: Store): voi
 
     const items = store.getPendingAsksByBatch(subId, batchId);
     if (items.length === 0) {
-      await ctx.answerCallbackQuery({ text: "This batch is no longer pending." });
+      await ctx.answerCallbackQuery({ text: "This batch is no longer pending." }).catch(() => {});
       return;
     }
 
@@ -76,7 +76,7 @@ export function registerBulkAskHandlers(bot: Bot<BotContext>, store: Store): voi
     }
     store.removePendingAsksByBatch(subId, batchId);
 
-    await ctx.answerCallbackQuery({ text: "Skipped" });
+    await ctx.answerCallbackQuery({ text: "Skipped" }).catch(() => {});
     await ctx.editMessageText(`Skipped ${items.length} episode(s). They will not be downloaded automatically.`);
   });
 }

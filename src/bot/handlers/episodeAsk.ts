@@ -11,17 +11,17 @@ export function registerEpisodeAskHandlers(bot: Bot<BotContext>, store: Store): 
 
     const pending = store.getPendingAsk(subId, torrentId);
     if (!pending) {
-      await ctx.answerCallbackQuery({ text: "This request is no longer pending." });
+      await ctx.answerCallbackQuery({ text: "This request is no longer pending." }).catch(() => {});
       return;
     }
 
     const settings = store.getSettings();
     if (!settings.downloader) {
-      await ctx.answerCallbackQuery({ text: "Downloader is not configured." });
+      await ctx.answerCallbackQuery({ text: "Downloader is not configured." }).catch(() => {});
       return;
     }
 
-    await ctx.answerCallbackQuery({ text: "Downloading..." });
+    await ctx.answerCallbackQuery({ text: "Downloading..." }).catch(() => {});
     try {
       const client = new DownloaderClient(settings.downloader);
 
@@ -58,13 +58,13 @@ export function registerEpisodeAskHandlers(bot: Bot<BotContext>, store: Store): 
 
     const pending = store.getPendingAsk(subId, torrentId);
     if (!pending) {
-      await ctx.answerCallbackQuery({ text: "This request is no longer pending." });
+      await ctx.answerCallbackQuery({ text: "This request is no longer pending." }).catch(() => {});
       return;
     }
 
     store.markSeen(subId, pending.infoHash);
     store.removePendingAsk(subId, torrentId);
-    await ctx.answerCallbackQuery({ text: "Skipped" });
+    await ctx.answerCallbackQuery({ text: "Skipped" }).catch(() => {});
     await ctx.editMessageText(
       `Skipped:\n${pending.title}\n\nA WEB-DL release will still be auto-downloaded if one appears.`,
     );
