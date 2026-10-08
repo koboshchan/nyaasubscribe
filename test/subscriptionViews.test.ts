@@ -181,12 +181,12 @@ describe("renderSubscriptionDetails", () => {
     assert.deepEqual(callbacks(renderDeleteConfirm(s, 2).keyboard), [`s:dy:${s.id}:2`, `s:v:${s.id}:2`]);
   });
 
-  it("edit keyboards tick the current value and fit 64 bytes", () => {
+  it("edit keyboards label the current value and fit 64 bytes", () => {
     const s = sub(1, { provider: "tsundere-raws", resolution: "720p" });
     const pk = editProviderKeyboard(s, 12);
-    assert.ok(pk.inline_keyboard.flat().some((b) => b.text === "✓ Tsundere-Raws"));
+    assert.ok(pk.inline_keyboard.flat().some((b) => b.text === "Current: Tsundere-Raws"));
     const rk = editResolutionKeyboard(s, 12);
-    assert.ok(rk.inline_keyboard.flat().some((b) => b.text === "✓ 720p"));
+    assert.ok(rk.inline_keyboard.flat().some((b) => b.text === "Current: 720p"));
     for (const c of [...callbacks(pk), ...callbacks(rk)]) assert.ok(Buffer.byteLength(c) <= 64, c);
   });
 });
