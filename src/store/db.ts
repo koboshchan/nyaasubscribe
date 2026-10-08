@@ -1,6 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { Db, PendingAsk, Settings, Subscription } from "./types";
+import { checkTitle, isProvider, isResolution } from "./validation";
+
+export type SubscriptionPatch = Partial<Pick<Subscription, "animeName" | "provider" | "resolution">>;
+const PATCHABLE = ["animeName", "provider", "resolution"] as const;
 
 const DATA_DIR = process.env.DATA_DIR || "/data";
 const DB_PATH = path.join(DATA_DIR, "db.json");
@@ -70,6 +74,35 @@ export class Store {
   addSubscription(sub: Subscription): void {
     this.db.subscriptions.push(sub);
     this.persist();
+  }
+
+  // Only title/provider/resolution are editable; history fields (seenHashes,
+  // downloadedEpisodes, pendingAsks), id and createdAt can never be patched.
+  // Throws on unknown fields or invalid values so callers can't corrupt db.json.
+  updateSubscription(id: string, patch: SubscriptionPatch): Subscription | undefined {
+    if (patch === null || typeof patch !== "object") throw new TypeError("patch must be an object");
+    for (const key of Object.keys(patch)) {
+      if (!(PATCHABLE as readonly string[]).includes(key)) throw new TypeError(`field not editable: ${key}`);
+    }
+    const clean: SubscriptionPatch = {};
+    if (Object.prototype.hasOwnProperty.call(patch, "animeName")) {
+      const t = checkTitle(patch.animeName);
+      if (!t.ok) throw new TypeError(`invalid title (${t.reason})`);
+      clean.animeName = t.value;
+    }
+    if (Object.prototype.hasOwnProperty.call(patch, "provider")) {
+      if (!isProvider(patch.provider)) throw new TypeError("invalid provider");
+      clean.provider = patch.provider;
+    }
+    if (Object.prototype.hasOwnProperty.call(patch, "resolution")) {
+      if (!isResolution(patch.resolution)) throw new TypeError("invalid resolution");
+      clean.resolution = patch.resolution;
+    }
+    const sub = this.getSubscription(id);
+    if (!sub) return undefined;
+    Object.assign(sub, clean);
+    this.persist();
+    return sub;
   }
 
   removeSubscription(id: string): void {

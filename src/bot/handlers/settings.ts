@@ -1,6 +1,7 @@
 import type { Bot } from "grammy";
 import type { BotContext } from "../context";
 import type { Store } from "../../store/db";
+import { escapeHtml } from "../views/subscriptions";
 import { settingsKeyboard, pollIntervalKeyboard, backToMainKeyboard } from "../keyboards";
 
 export function registerSettingsHandlers(bot: Bot<BotContext>, store: Store): void {
@@ -32,16 +33,18 @@ export function registerSettingsHandlers(bot: Bot<BotContext>, store: Store): vo
 async function sendSettings(ctx: BotContext, store: Store): Promise<void> {
   const settings = store.getSettings();
   const downloader = settings.downloader;
-  let downloaderStatus = "Not configured";
+  const lines = ["<b>⚙️ Settings</b>", ""];
   if (downloader) {
     const clientName = downloader.clientType === "qbit" ? "qBittorrent" : "uTorrent";
-    const authType = downloader.apiToken ? "API Token" : "Password";
-    downloaderStatus = `Configured (${clientName}, ${downloader.baseUrl}, ${authType})`;
+    const authType = downloader.apiToken ? "API token" : "password";
+    lines.push(
+      `Downloader: ✅ ${clientName}`,
+      `URL: <code>${escapeHtml(downloader.baseUrl)}</code>`,
+      `Auth: ${authType}`,
+    );
+  } else {
+    lines.push("Downloader: ⚠️ not configured", "<i>Subscriptions are paused until you set one up.</i>");
   }
-  const text = [
-    "Settings",
-    `Downloader: ${downloaderStatus}`,
-    `Poll interval: ${settings.pollIntervalMinutes} minutes`,
-  ].join("\n");
-  await ctx.reply(text, { reply_markup: settingsKeyboard() });
+  lines.push("", `Poll interval: every ${settings.pollIntervalMinutes} min`);
+  await ctx.reply(lines.join("\n"), { parse_mode: "HTML", reply_markup: settingsKeyboard() });
 }

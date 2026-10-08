@@ -36,11 +36,17 @@ interface NyaaApiSearchResponse {
 // hard-capped to the ~75 most recent items, which silently drops older
 // episodes once a show's total releases (episodes x resolutions) exceed
 // that cap.
-function searchUrl(provider: Provider, animeName: string, page: number): string {
-  const user = PROVIDER_USER[provider];
+// Exposed so the bot UI can show the exact query the poller sends, rather
+// than a paraphrase that could drift from real behavior.
+export function buildSearchQuery(provider: Provider, animeName: string): { query: string; uploader?: string } {
   const prefix = PROVIDER_QUERY_PREFIX[provider];
   const cleanName = animeName.trim().replace(/\s+\d{4}$/, "");
   const query = prefix ? `${prefix} ${cleanName}` : cleanName;
+  return { query, uploader: PROVIDER_USER[provider] };
+}
+
+function searchUrl(provider: Provider, animeName: string, page: number): string {
+  const { query, uploader: user } = buildSearchQuery(provider, animeName);
   const base = user
     ? `https://nyaaapi.onrender.com/nyaa/user/${encodeURIComponent(user)}`
     : "https://nyaaapi.onrender.com/nyaa";
