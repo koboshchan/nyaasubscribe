@@ -3,15 +3,13 @@ import type { Subscription } from "../store/types";
 
 export function mainMenuKeyboard(): InlineKeyboard {
   return new InlineKeyboard()
-    .text("Subscriptions", "menu:subscriptions")
+    .text("📺 Subscriptions", "menu:subscriptions")
     .row()
-    .text("Add Subscription", "menu:add")
+    .text("➕ Add", "menu:add")
+    .text("⬇️ Download existing", "menu:downloadexisting")
     .row()
-    .text("Download Existing", "menu:downloadexisting")
-    .row()
-    .text("Settings", "menu:settings")
-    .row()
-    .text("Help", "menu:help");
+    .text("⚙️ Settings", "menu:settings")
+    .text("❓ Help", "menu:help");
 }
 
 export function providerKeyboard(): InlineKeyboard {
@@ -55,11 +53,11 @@ export function pollIntervalKeyboard(): InlineKeyboard {
 
 export function settingsKeyboard(): InlineKeyboard {
   return new InlineKeyboard()
-    .text("Configure Downloader", "settings:downloader")
+    .text("🧲 Configure downloader", "settings:downloader")
     .row()
-    .text("Poll Interval", "settings:poll")
+    .text("⏱ Poll interval", "settings:poll")
     .row()
-    .text("Back", "menu:main");
+    .text("‹ Menu", "menu:main");
 }
 
 export function downloaderClientChoiceKeyboard(): InlineKeyboard {
@@ -77,7 +75,7 @@ export function qbitAuthChoiceKeyboard(): InlineKeyboard {
 }
 
 export function backToMainKeyboard(): InlineKeyboard {
-  return new InlineKeyboard().text("Back", "menu:main");
+  return new InlineKeyboard().text("‹ Menu", "menu:main");
 }
 
 
