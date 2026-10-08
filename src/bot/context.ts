@@ -6,6 +6,8 @@ export interface SessionData {
   // grammy's conversations plugin doesn't support passing extra arguments
   // to enter() directly.
   pendingDownloadExistingId?: string;
+  // Same workaround for the "editSubscriptionTitle" conversation.
+  pendingEditTitleId?: string;
 }
 
 export type BotContext = Context & SessionFlavor<SessionData> & ConversationFlavor;

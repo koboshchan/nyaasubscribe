@@ -6,6 +6,7 @@ import { addSubscriptionConversation } from "./conversations/addSubscription";
 import { configureDownloaderConversation } from "./conversations/configureDownloader";
 import { downloadExistingConversation } from "./conversations/downloadExisting";
 import { downloadExistingOneShotConversation } from "./conversations/downloadExistingOneShot";
+import { editSubscriptionTitleConversation } from "./conversations/editSubscriptionTitle";
 import { registerStartHandlers } from "./handlers/start";
 import { registerSubscriptionHandlers } from "./handlers/subscriptions";
 import { registerSettingsHandlers } from "./handlers/settings";
@@ -34,6 +35,7 @@ export function createBot(token: string, adminId: number, store: Store): Bot<Bot
   bot.use(createConversation(configureDownloaderConversation(store), "configureDownloader"));
   bot.use(createConversation(downloadExistingConversation(store), "downloadExisting"));
   bot.use(createConversation(downloadExistingOneShotConversation(store), "downloadExistingOneShot"));
+  bot.use(createConversation(editSubscriptionTitleConversation(store), "editSubscriptionTitle"));
 
   registerStartHandlers(bot);
   registerSubscriptionHandlers(bot, store);
