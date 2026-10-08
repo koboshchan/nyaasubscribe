@@ -143,6 +143,22 @@ describe("subscription flows (mocked Telegram API)", () => {
     assert.match(h.sent().at(-1)!.payload.text, /Frieren &amp; &lt;Friends&gt;/);
   });
 
+  it("menus render as HTML; settings escapes the downloader URL", async () => {
+    const h = await harness(1);
+    h.store.updateSettings({ downloader: { clientType: "qbit", baseUrl: "http://h/?a=1&b=<2>", downloadDirIndex: 0 } });
+    await h.text("/start");
+    await h.text("/settings");
+    await h.text("/help");
+    const [start, settings, help] = h.sent();
+    for (const m of [start, settings, help]) assert.equal(m.payload.parse_mode, "HTML");
+    assert.match(settings.payload.text, /a=1&amp;b=&lt;2&gt;/);
+    h.store.updateSettings({ downloader: null });
+    await h.text("/settings");
+    assert.match(h.sent().at(-1)!.payload.text, /not configured/);
+    // only the tags we emit may appear in help
+    assert.doesNotMatch(help.payload.text.replace(/<\/?(b|i|code)>/g, ""), /[<>]/);
+  });
+
   it("tapping a deleted subscription falls back to the list", async () => {
     const h = await harness(2);
     await h.tap(`s:v:${id(9)}:0`);
