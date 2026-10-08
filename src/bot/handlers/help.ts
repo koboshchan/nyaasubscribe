@@ -3,7 +3,7 @@ import type { BotContext } from "../context";
 import { backToMainKeyboard } from "../keyboards";
 
 const HELP_TEXT = [
-  "<b>❓ Help</b>",
+  "<b>Help</b>",
   "",
   "<b>Commands</b>",
   "/start - main menu",

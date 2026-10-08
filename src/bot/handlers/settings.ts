@@ -33,17 +33,17 @@ export function registerSettingsHandlers(bot: Bot<BotContext>, store: Store): vo
 async function sendSettings(ctx: BotContext, store: Store): Promise<void> {
   const settings = store.getSettings();
   const downloader = settings.downloader;
-  const lines = ["<b>⚙️ Settings</b>", ""];
+  const lines = ["<b>Settings</b>", ""];
   if (downloader) {
     const clientName = downloader.clientType === "qbit" ? "qBittorrent" : "uTorrent";
     const authType = downloader.apiToken ? "API token" : "password";
     lines.push(
-      `Downloader: ✅ ${clientName}`,
+      `Downloader: ${clientName}`,
       `URL: <code>${escapeHtml(downloader.baseUrl)}</code>`,
       `Auth: ${authType}`,
     );
   } else {
-    lines.push("Downloader: ⚠️ not configured", "<i>Subscriptions are paused until you set one up.</i>");
+    lines.push("Downloader: not configured", "<i>Subscriptions are paused until you set one up.</i>");
   }
   lines.push("", `Poll interval: every ${settings.pollIntervalMinutes} min`);
   await ctx.reply(lines.join("\n"), { parse_mode: "HTML", reply_markup: settingsKeyboard() });

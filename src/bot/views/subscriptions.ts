@@ -87,21 +87,21 @@ export function subscriptionStatus(sub: Subscription, settings: Settings): SubSt
 }
 
 const STATUS_SHORT: Record<SubStatus, string> = {
-  paused: "⏸ paused",
-  "needs-you": "🔔 needs you",
-  watching: "🟢 watching",
+  paused: "paused",
+  "needs-you": "needs you",
+  watching: "watching",
 };
 
 function statusLine(sub: Subscription, settings: Settings): string {
   switch (subscriptionStatus(sub, settings)) {
     case "paused":
-      return "⏸ Paused - no downloader configured, so nothing is polled";
+      return "Paused - no downloader configured, so nothing is polled";
     case "needs-you": {
       const n = sub.pendingAsks.length;
-      return `🔔 ${n} release${n === 1 ? "" : "s"} waiting for your decision`;
+      return `${n} release${n === 1 ? "" : "s"} waiting for your decision`;
     }
     case "watching":
-      return `🟢 Watching - scheduled every ${settings.pollIntervalMinutes} min`;
+      return `Watching - scheduled every ${settings.pollIntervalMinutes} min`;
   }
 }
 
@@ -123,9 +123,9 @@ function countLine(sub: Subscription): string {
 
 export function renderSubscriptionList(subs: Subscription[], settings: Settings, page: number): { text: string; keyboard: InlineKeyboard; page: number } {
   const p = paginate(subs, page);
-  const lines: string[] = [`<b>📺 Subscriptions</b> · ${subs.length}`];
+  const lines: string[] = [`<b>Subscriptions</b> · ${subs.length}`];
   if (!settings.downloader) {
-    lines.push("", "⚠️ <b>No downloader configured.</b> Nothing is checked or downloaded until you set one up.");
+    lines.push("", "<b>No downloader configured.</b> Nothing is checked or downloaded until you set one up.");
   }
   p.items.forEach((sub, i) => {
     lines.push(
@@ -147,19 +147,19 @@ export function renderSubscriptionList(subs: Subscription[], settings: Settings,
     kb.text(p.page < p.totalPages - 1 ? "Next ›" : "·", p.page < p.totalPages - 1 ? `s:l:${p.page + 1}` : "s:noop");
     kb.row();
   }
-  if (!settings.downloader) kb.text("⚙️ Set up downloader", "settings:downloader").row();
-  kb.text("➕ Add", "menu:add").text("‹ Menu", "menu:main");
+  if (!settings.downloader) kb.text("Set up downloader", "settings:downloader").row();
+  kb.text("Add", "menu:add").text("‹ Menu", "menu:main");
   return { text: lines.join("\n"), keyboard: kb, page: p.page };
 }
 
 export function renderEmptyList(): { text: string; keyboard: InlineKeyboard } {
   return {
     text: [
-      "<b>📺 Subscriptions</b> · 0",
+      "<b>Subscriptions</b> · 0",
       "",
       "Nothing tracked yet. Add a show and pick a provider + resolution; new episodes get sent to your downloader automatically.",
     ].join("\n"),
-    keyboard: new InlineKeyboard().text("➕ Add subscription", "menu:add").row().text("‹ Menu", "menu:main"),
+    keyboard: new InlineKeyboard().text("Add subscription", "menu:add").row().text("‹ Menu", "menu:main"),
   };
 }
 
@@ -195,13 +195,13 @@ export function renderSubscriptionDetails(sub: Subscription, settings: Settings,
   lines.push("", `Added ${formatDate(sub.createdAt)}`);
 
   const kb = new InlineKeyboard()
-    .text("⬇️ Download existing", `dlexisting:${sub.id}`)
+    .text("Download existing", `dlexisting:${sub.id}`)
     .row()
-    .text("✏️ Rename", `s:et:${sub.id}`)
-    .text("🏷 Provider", `s:ep:${sub.id}:${page}`)
-    .text("📐 Quality", `s:er:${sub.id}:${page}`)
+    .text("Rename", `s:et:${sub.id}`)
+    .text("Provider", `s:ep:${sub.id}:${page}`)
+    .text("Quality", `s:er:${sub.id}:${page}`)
     .row()
-    .text("🗑 Delete", `s:d:${sub.id}:${page}`)
+    .text("Delete", `s:d:${sub.id}:${page}`)
     .text("‹ Back", `s:l:${page}`);
   return { text: lines.join("\n"), keyboard: kb };
 }
@@ -213,14 +213,14 @@ export function renderDeleteConfirm(sub: Subscription, page: number): { text: st
       "",
       `Stops tracking new ${providerLabel(sub.provider)} ${escapeHtml(truncate(sub.resolution, 20))} releases and forgets its download history (${sub.downloadedEpisodes.length} episodes). Files already downloaded are not touched.`,
     ].join("\n"),
-    keyboard: new InlineKeyboard().text("🗑 Yes, delete", `s:dy:${sub.id}:${page}`).text("Cancel", `s:v:${sub.id}:${page}`),
+    keyboard: new InlineKeyboard().text("Yes, delete", `s:dy:${sub.id}:${page}`).text("Cancel", `s:v:${sub.id}:${page}`),
   };
 }
 
 export function editProviderKeyboard(sub: Subscription, page: number): InlineKeyboard {
   const kb = new InlineKeyboard();
   (Object.keys(PROVIDER_LABELS) as Provider[]).forEach((p, i) => {
-    kb.text(`${p === sub.provider ? "✓ " : ""}${PROVIDER_LABELS[p]}`, `s:sp:${sub.id}:${p}:${page}`);
+    kb.text(`${p === sub.provider ? "Current: " : ""}${PROVIDER_LABELS[p]}`, `s:sp:${sub.id}:${p}:${page}`);
     if (i % 2 === 1) kb.row();
   });
   return kb.row().text("‹ Back", `s:v:${sub.id}:${page}`);
@@ -228,7 +228,7 @@ export function editProviderKeyboard(sub: Subscription, page: number): InlineKey
 
 export function editResolutionKeyboard(sub: Subscription, page: number): InlineKeyboard {
   const kb = new InlineKeyboard();
-  for (const r of RESOLUTIONS) kb.text(`${r === sub.resolution ? "✓ " : ""}${r}`, `s:sr:${sub.id}:${r}:${page}`);
+  for (const r of RESOLUTIONS) kb.text(`${r === sub.resolution ? "Current: " : ""}${r}`, `s:sr:${sub.id}:${r}:${page}`);
   return kb.row().text("‹ Back", `s:v:${sub.id}:${page}`);
 }
 
