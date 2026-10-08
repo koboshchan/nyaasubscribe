@@ -161,7 +161,7 @@ describe("renderSubscriptionDetails", () => {
       ],
     });
     const { text } = renderSubscriptionDetails(s, configured, 0);
-    assert.match(text, /Latest pending match: ep 02/);
+    assert.match(text, /Latest saved pending match: ep 02/);
     assert.match(text, /&lt;New&gt; &amp; 02/);
     assert.doesNotMatch(text, /Last (checked|matched)/i);
   });
