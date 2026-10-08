@@ -3,13 +3,13 @@ import type { Subscription } from "../store/types";
 
 export function mainMenuKeyboard(): InlineKeyboard {
   return new InlineKeyboard()
-    .text("📺 Subscriptions", "menu:subscriptions")
+    .text("Subscriptions", "menu:subscriptions")
     .row()
-    .text("➕ Add", "menu:add")
-    .text("⬇️ Download existing", "menu:downloadexisting")
+    .text("Add", "menu:add")
+    .text("Download existing", "menu:downloadexisting")
     .row()
-    .text("⚙️ Settings", "menu:settings")
-    .text("❓ Help", "menu:help");
+    .text("Settings", "menu:settings")
+    .text("Help", "menu:help");
 }
 
 export function providerKeyboard(): InlineKeyboard {
@@ -53,9 +53,9 @@ export function pollIntervalKeyboard(): InlineKeyboard {
 
 export function settingsKeyboard(): InlineKeyboard {
   return new InlineKeyboard()
-    .text("🧲 Configure downloader", "settings:downloader")
+    .text("Configure downloader", "settings:downloader")
     .row()
-    .text("⏱ Poll interval", "settings:poll")
+    .text("Poll interval", "settings:poll")
     .row()
     .text("‹ Menu", "menu:main");
 }

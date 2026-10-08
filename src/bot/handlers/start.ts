@@ -3,7 +3,7 @@ import type { BotContext } from "../context";
 import { mainMenuKeyboard } from "../keyboards";
 
 const WELCOME = [
-  "<b>🐾 Nyaa Subscribe</b>",
+  "<b>Nyaa Subscribe</b>",
   "",
   "Tracks anime releases on nyaa.si from SubsPlease, Erai-raws, Tsundere-Raws, AnoZu and ToonsHub, and sends new episodes to your torrent downloader.",
 ].join("\n");
