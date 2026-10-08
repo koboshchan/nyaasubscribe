@@ -256,6 +256,22 @@ describe("subscription flows (mocked Telegram API)", () => {
     assert.doesNotMatch(help.payload.text.replace(/<\/?(b|i|code)>/g, ""), /[<>]/);
   });
 
+  it("menus and rename replies/buttons stay emoji-free", async () => {
+    const h = await harness(2);
+    for (const command of ["/start", "/settings", "/help", "/subscriptions"]) await h.text(command);
+    for (const callback of ["menu:main", "menu:settings", "menu:help", "s:v:" + id(2) + ":0", "s:d:" + id(2) + ":0"]) await h.tap(callback);
+    await h.tap("s:et:" + id(2));
+    await h.text("New Name");
+    const { yes } = lastConfirm(h);
+    assert.equal(h.sent().at(-1)!.payload.reply_markup.inline_keyboard[0][0].text, "Save rename");
+    await h.text("stray input");
+    await h.tap(yes);
+    for (const call of h.calls) {
+      const texts = [call.payload.text, ...(call.payload.reply_markup?.inline_keyboard ?? []).flat().map((b: any) => b.text)];
+      for (const text of texts) if (text) assert.doesNotMatch(text, /[\p{Extended_Pictographic}\p{Emoji_Presentation}\uFE0F\u20E3]/u);
+    }
+  });
+
   it("tapping a deleted subscription falls back to the list", async () => {
     const h = await harness(2);
     await h.tap(`s:v:${id(9)}:0`);

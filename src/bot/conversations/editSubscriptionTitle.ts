@@ -41,8 +41,8 @@ export function editSubscriptionTitleConversation(store: Store) {
         "<b>Rename this subscription</b>",
         `Current title: <code>${titleHtml(sub.animeName)}</code>`,
         "",
-        `⚠️ Renaming keeps this as the <b>same show</b>: its download history (${eps} episode${eps === 1 ? "" : "s"}) and pending matches stay attached. Only use it to fix or change the search title.`,
-        "Tracking a <b>different show</b>? Use ➕ Add instead.",
+        `Renaming keeps this as the <b>same show</b>: its download history (${eps} episode${eps === 1 ? "" : "s"}) and pending matches stay attached. Only use it to fix or change the search title.`,
+        "Tracking a <b>different show</b>? Use Add instead.",
         "",
         `Send the new title (max ${MAX_TITLE_CHARS} characters), or /cancel.`,
       ].join("\n"),
@@ -104,7 +104,7 @@ export function editSubscriptionTitleConversation(store: Store) {
       ].join("\n"),
       {
         parse_mode: "HTML",
-        reply_markup: new InlineKeyboard().text("✅ Save rename", `s:rn:${nonce}:y`).text("Cancel", `s:rn:${nonce}:n`),
+        reply_markup: new InlineKeyboard().text("Save rename", `s:rn:${nonce}:y`).text("Cancel", `s:rn:${nonce}:n`),
       },
     );
 
@@ -120,7 +120,7 @@ export function editSubscriptionTitleConversation(store: Store) {
       } else if (next.callbackQuery) {
         await next.answerCallbackQuery({ text: "Tap Save rename or Cancel first (or send /cancel)." }).catch(() => {});
       } else {
-        await next.reply("Tap ✅ Save rename or Cancel above, or send /cancel.");
+        await next.reply("Tap Save rename or Cancel above, or send /cancel.");
       }
     }
     if (!confirmed) {
@@ -137,6 +137,6 @@ export function editSubscriptionTitleConversation(store: Store) {
     });
     if (result === "gone") await goneReply();
     else if (result === "dup") await detailsReply("A matching subscription appeared meanwhile. Title unchanged.");
-    else await detailsReply("✅ Renamed. Download history is kept.");
+    else await detailsReply("Renamed. Download history is kept.");
   };
 }
