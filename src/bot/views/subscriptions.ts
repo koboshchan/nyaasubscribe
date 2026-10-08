@@ -159,7 +159,7 @@ export function renderSubscriptionDetails(sub: Subscription, settings: Settings,
     `Pending: ${sub.pendingAsks.length}`,
   ];
   if (latestAsk) {
-    lines.push(`Latest pending match: ep ${escapeHtml(latestAsk.episode)}`, `<i>${escapeHtml(truncate(latestAsk.title, 120))}</i>`);
+    lines.push(`Latest saved pending match: ep ${escapeHtml(latestAsk.episode)}`, `<i>${escapeHtml(truncate(latestAsk.title, 120))}</i>`);
   }
   lines.push("", `Added ${formatDate(sub.createdAt)}`);
 
