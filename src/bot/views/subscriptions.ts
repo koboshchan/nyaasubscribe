@@ -2,6 +2,15 @@ import { InlineKeyboard } from "grammy";
 import type { Provider, Resolution } from "../../nyaa/types";
 import type { Settings, Subscription } from "../../store/types";
 import { buildSearchQuery } from "../../nyaa/search";
+import { RESOLUTION_IDS, isProvider } from "../../store/validation";
+
+export const TELEGRAM_TEXT_LIMIT = 4096;
+// Display caps for legacy data that predates title validation.
+export const DISPLAY_TITLE_CHARS = 200;
+export const LIST_TITLE_CHARS = 100;
+export const DISPLAY_QUERY_CHARS = 250;
+export const DISPLAY_EPISODE_CHARS = 20;
+export const DISPLAY_ASK_TITLE_CHARS = 120;
 
 export const PAGE_SIZE = 5;
 
@@ -13,7 +22,26 @@ export const PROVIDER_LABELS: Record<Provider, string> = {
   toonshub: "ToonsHub",
 };
 
-export const RESOLUTIONS: Resolution[] = ["480p", "720p", "1080p"];
+export const RESOLUTIONS: Resolution[] = [...RESOLUTION_IDS];
+
+export function providerLabel(provider: string): string {
+  return isProvider(provider) ? PROVIDER_LABELS[provider] : escapeHtml(truncate(provider, 40));
+}
+
+// Length of the text Telegram counts after HTML entity parsing (UTF-16 units).
+export function parsedLength(html: string): number {
+  return html
+    .replace(/<[^>]+>/g, "")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, "&").length;
+}
+
+// Escaped, length-bounded title for message bodies.
+export function titleHtml(title: string, max = DISPLAY_TITLE_CHARS): string {
+  return escapeHtml(truncate(title, max));
+}
 
 // Telegram HTML parse mode only needs these three escaped.
 export function escapeHtml(text: string): string {
@@ -73,7 +101,7 @@ function statusLine(sub: Subscription, settings: Settings): string {
       return `🔔 ${n} release${n === 1 ? "" : "s"} waiting for your decision`;
     }
     case "watching":
-      return `🟢 Watching - checked every ${settings.pollIntervalMinutes} min`;
+      return `🟢 Watching - scheduled every ${settings.pollIntervalMinutes} min`;
   }
 }
 
@@ -86,7 +114,7 @@ function formatDate(isoDate: string): string {
 function countLine(sub: Subscription): string {
   const dl = sub.downloadedEpisodes.length;
   const latest = latestDownloadedEpisode(sub);
-  const parts = [`${dl} downloaded${latest ? ` (latest ep ${escapeHtml(latest)})` : ""}`];
+  const parts = [`${dl} downloaded${latest ? ` (latest ep ${escapeHtml(truncate(latest, DISPLAY_EPISODE_CHARS))})` : ""}`];
   if (sub.pendingAsks.length) parts.push(`${sub.pendingAsks.length} pending`);
   return parts.join(" · ");
 }
@@ -102,8 +130,8 @@ export function renderSubscriptionList(subs: Subscription[], settings: Settings,
   p.items.forEach((sub, i) => {
     lines.push(
       "",
-      `<b>${p.start + i + 1}. ${escapeHtml(sub.animeName)}</b>`,
-      `${PROVIDER_LABELS[sub.provider] ?? escapeHtml(sub.provider)} · ${escapeHtml(sub.resolution)} · ${STATUS_SHORT[subscriptionStatus(sub, settings)]}`,
+      `<b>${p.start + i + 1}. ${titleHtml(sub.animeName, LIST_TITLE_CHARS)}</b>`,
+      `${providerLabel(sub.provider)} · ${escapeHtml(sub.resolution)} · ${STATUS_SHORT[subscriptionStatus(sub, settings)]}`,
       countLine(sub),
     );
   });
@@ -139,34 +167,37 @@ export function renderEmptyList(): { text: string; keyboard: InlineKeyboard } {
 
 export function renderSubscriptionDetails(sub: Subscription, settings: Settings, page: number): { text: string; keyboard: InlineKeyboard } {
   const { query, uploader } = buildSearchQuery(sub.provider, sub.animeName);
-  const providerLabel = PROVIDER_LABELS[sub.provider] ?? sub.provider;
+  const label = providerLabel(sub.provider);
   const scope = uploader
     ? `uploads by <code>${escapeHtml(uploader)}</code> on nyaa`
-    : `all of nyaa (${escapeHtml(providerLabel)} uploads anonymously)`;
+    : `all of nyaa (${label} uploads anonymously)`;
+  // pendingAsks is append-only, so the last entry is the latest one saved.
   const latestAsk = sub.pendingAsks.at(-1);
+  const queryTruncated = [...query].length > DISPLAY_QUERY_CHARS;
+  const latestEp = latestDownloadedEpisode(sub);
 
   const lines = [
-    `<b>${escapeHtml(sub.animeName)}</b>`,
+    `<b>${titleHtml(sub.animeName)}</b>`,
     statusLine(sub, settings),
     "",
     "<b>Search</b>",
-    `Query: <code>${escapeHtml(query)}</code>`,
+    `Query: <code>${escapeHtml(truncate(query, DISPLAY_QUERY_CHARS))}</code>${queryTruncated ? " <i>(query truncated)</i>" : ""}`,
     `Scope: ${scope}`,
-    `Filters: ${escapeHtml(providerLabel)} release format · ${escapeHtml(sub.resolution)} · title matches`,
+    `Filters: ${label} release format · ${escapeHtml(sub.resolution)} · title matches`,
     "",
     "<b>Progress</b>",
-    `Downloaded: ${sub.downloadedEpisodes.length} episode${sub.downloadedEpisodes.length === 1 ? "" : "s"}${latestDownloadedEpisode(sub) ? ` (latest ep ${escapeHtml(latestDownloadedEpisode(sub)!)})` : ""}`,
+    `Downloaded: ${sub.downloadedEpisodes.length} episode${sub.downloadedEpisodes.length === 1 ? "" : "s"}${latestEp ? ` (latest ep ${escapeHtml(truncate(latestEp, DISPLAY_EPISODE_CHARS))})` : ""}`,
     `Pending: ${sub.pendingAsks.length}`,
   ];
   if (latestAsk) {
-    lines.push(`Latest saved pending match: ep ${escapeHtml(latestAsk.episode)}`, `<i>${escapeHtml(truncate(latestAsk.title, 120))}</i>`);
+    lines.push(`Latest saved pending match: ep ${escapeHtml(truncate(latestAsk.episode, DISPLAY_EPISODE_CHARS))}`, `<i>${escapeHtml(truncate(latestAsk.title, DISPLAY_ASK_TITLE_CHARS))}</i>`);
   }
   lines.push("", `Added ${formatDate(sub.createdAt)}`);
 
   const kb = new InlineKeyboard()
     .text("⬇️ Download existing", `dlexisting:${sub.id}`)
     .row()
-    .text("✏️ Title", `s:et:${sub.id}`)
+    .text("✏️ Rename", `s:et:${sub.id}`)
     .text("🏷 Provider", `s:ep:${sub.id}:${page}`)
     .text("📐 Quality", `s:er:${sub.id}:${page}`)
     .row()
@@ -178,9 +209,9 @@ export function renderSubscriptionDetails(sub: Subscription, settings: Settings,
 export function renderDeleteConfirm(sub: Subscription, page: number): { text: string; keyboard: InlineKeyboard } {
   return {
     text: [
-      `<b>Delete ${escapeHtml(sub.animeName)}?</b>`,
+      `<b>Delete ${titleHtml(sub.animeName)}?</b>`,
       "",
-      `Stops tracking new ${escapeHtml(PROVIDER_LABELS[sub.provider] ?? sub.provider)} ${escapeHtml(sub.resolution)} releases and forgets its download history (${sub.downloadedEpisodes.length} episodes). Files already downloaded are not touched.`,
+      `Stops tracking new ${providerLabel(sub.provider)} ${escapeHtml(truncate(sub.resolution, 20))} releases and forgets its download history (${sub.downloadedEpisodes.length} episodes). Files already downloaded are not touched.`,
     ].join("\n"),
     keyboard: new InlineKeyboard().text("🗑 Yes, delete", `s:dy:${sub.id}:${page}`).text("Cancel", `s:v:${sub.id}:${page}`),
   };
