@@ -72,6 +72,17 @@ export class Store {
     this.persist();
   }
 
+  updateSubscription(
+    id: string,
+    patch: Partial<Pick<Subscription, "animeName" | "provider" | "resolution">>,
+  ): Subscription | undefined {
+    const sub = this.getSubscription(id);
+    if (!sub) return undefined;
+    Object.assign(sub, patch);
+    this.persist();
+    return sub;
+  }
+
   removeSubscription(id: string): void {
     this.db.subscriptions = this.db.subscriptions.filter((s) => s.id !== id);
     this.persist();
