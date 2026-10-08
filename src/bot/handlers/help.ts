@@ -14,7 +14,7 @@ const HELP_TEXT = [
   "<b>How it works</b>",
   "Add a subscription with the exact release title (e.g. <code>Mushoku Tensei S3</code>), then pick a provider (SubsPlease, Erai-raws, Tsundere-Raws, AnoZu or ToonsHub) and a resolution (480p, 720p or 1080p). The bot polls nyaa.si in the background and sends new matching episodes to your downloader.",
   "",
-  "Tap a show in /subscriptions to see its exact search query and progress, change its title, provider or resolution, or delete it.",
+  "Tap a show in /subscriptions to see its exact search query and progress, rename it (same show, history kept; use Add for a different show), change provider or resolution, or delete it.",
   "",
   "<b>AnoZu and ToonsHub</b>",
   "Their titles often carry both an English and an original name (e.g. <code>Love Unseen Beneath the Clear Night Sky 2026</code> and <code>Toumei na Yoru ni Kakeru Kimi to, Me ni Mienai Koi wo Shita</code>); either works as the subscription name. They upload anonymously, so matching relies on their title tags rather than an uploader account.",

@@ -2,14 +2,13 @@ import type { Bot } from "grammy";
 import type { InlineKeyboard } from "grammy";
 import type { BotContext } from "../context";
 import type { Store } from "../../store/db";
-import type { Provider, Resolution } from "../../nyaa/types";
+import { isProvider, isResolution } from "../../store/validation";
 import {
-  PROVIDER_LABELS,
-  RESOLUTIONS,
   editProviderKeyboard,
   editResolutionKeyboard,
-  escapeHtml,
   isDuplicate,
+  titleHtml,
+  truncate,
   renderDeleteConfirm,
   renderEmptyList,
   renderSubscriptionDetails,
@@ -94,7 +93,7 @@ export function registerSubscriptionHandlers(bot: Bot<BotContext>, store: Store)
     const sub = store.getSubscription(id);
     if (!sub) return gone(ctx, store, Number(page));
     store.removeSubscription(id);
-    await ctx.answerCallbackQuery({ text: `Deleted ${sub.animeName}`.slice(0, 190) }).catch(() => {});
+    await ctx.answerCallbackQuery({ text: truncate(`Deleted ${sub.animeName}`, 190) }).catch(() => {});
     await sendSubscriptions(ctx, store, Number(page));
   });
 
@@ -115,7 +114,7 @@ export function registerSubscriptionHandlers(bot: Bot<BotContext>, store: Store)
     const sub = store.getSubscription(id);
     if (!sub) return gone(ctx, store, Number(page));
     await ctx.answerCallbackQuery().catch(() => {});
-    await show(ctx, `<b>${escapeHtml(sub.animeName)}</b>\nChoose a provider:`, editProviderKeyboard(sub, Number(page)));
+    await show(ctx, `<b>${titleHtml(sub.animeName)}</b>\nChoose a provider:`, editProviderKeyboard(sub, Number(page)));
   });
 
   bot.callbackQuery(/^s:er:([^:]+):(\d+)$/, async (ctx) => {
@@ -123,7 +122,7 @@ export function registerSubscriptionHandlers(bot: Bot<BotContext>, store: Store)
     const sub = store.getSubscription(id);
     if (!sub) return gone(ctx, store, Number(page));
     await ctx.answerCallbackQuery().catch(() => {});
-    await show(ctx, `<b>${escapeHtml(sub.animeName)}</b>\nChoose a resolution:`, editResolutionKeyboard(sub, Number(page)));
+    await show(ctx, `<b>${titleHtml(sub.animeName)}</b>\nChoose a resolution:`, editResolutionKeyboard(sub, Number(page)));
   });
 
   bot.callbackQuery(/^s:(sp|sr):([^:]+):([^:]+):(\d+)$/, async (ctx) => {
@@ -133,8 +132,8 @@ export function registerSubscriptionHandlers(bot: Bot<BotContext>, store: Store)
     if (!sub) return gone(ctx, store, page);
     const patch =
       kind === "sp"
-        ? value in PROVIDER_LABELS ? { provider: value as Provider } : null
-        : (RESOLUTIONS as string[]).includes(value) ? { resolution: value as Resolution } : null;
+        ? isProvider(value) ? { provider: value } : null
+        : isResolution(value) ? { resolution: value } : null;
     if (!patch) {
       await ctx.answerCallbackQuery({ text: "Unknown option." }).catch(() => {});
       return;
@@ -143,7 +142,8 @@ export function registerSubscriptionHandlers(bot: Bot<BotContext>, store: Store)
       await ctx.answerCallbackQuery({ text: "You already have a subscription with those settings.", show_alert: true }).catch(() => {});
       return;
     }
-    store.updateSubscription(id, patch);
+    // Re-check: the subscription may have been deleted while the alert was up.
+    if (!store.updateSubscription(id, patch)) return gone(ctx, store, page);
     await ctx.answerCallbackQuery({ text: "Saved" }).catch(() => {});
     await sendSubscriptionDetails(ctx, store, id, page);
   });

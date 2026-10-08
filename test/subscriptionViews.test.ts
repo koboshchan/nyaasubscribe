@@ -14,6 +14,8 @@ import {
   latestDownloadedEpisode,
   isDuplicate,
   PAGE_SIZE,
+  parsedLength,
+  TELEGRAM_TEXT_LIMIT,
 } from "../src/bot/views/subscriptions";
 import type { Settings, Subscription } from "../src/store/types";
 
@@ -196,5 +198,52 @@ describe("isDuplicate", () => {
     assert.equal(isDuplicate([a, b], { ...a }), false);
     assert.equal(isDuplicate([a, b], { ...b, animeName: "FRIEREN" }), true);
     assert.equal(isDuplicate([a, b], { ...b, animeName: "FRIEREN", resolution: "720p" }), false);
+  });
+});
+
+describe("legacy long data stays within Telegram limits", () => {
+  const huge = "<&>" + "長".repeat(5000);
+  const ask = (i: number, title = "t") => ({ torrentId: String(i), infoHash: "h" + i, title, episode: "9".repeat(500) + i, magnet: "m" });
+  const legacy = sub(1, {
+    animeName: huge,
+    provider: "anozu", // anonymous uploader: query contains the full title
+    downloadedEpisodes: Array.from({ length: 3000 }, (_, i) => String(i) + "x".repeat(50)),
+    pendingAsks: [ask(1, "older"), ask(2, huge)],
+  });
+
+  it("details: bounded, escaped, query marked truncated", () => {
+    const { text } = renderSubscriptionDetails(legacy, configured, 0);
+    assert.ok(parsedLength(text) <= TELEGRAM_TEXT_LIMIT, String(parsedLength(text)));
+    assert.match(text, /\(query truncated\)/);
+    assert.match(text, /&lt;&amp;&gt;/);
+    assert.doesNotMatch(text.replace(/<\/?(b|i|code)>/g, ""), /[<>]/);
+  });
+
+  it("details: short query is not marked truncated", () => {
+    assert.doesNotMatch(renderSubscriptionDetails(sub(1), configured, 0).text, /truncated/);
+  });
+
+  it("list, delete confirm stay bounded", () => {
+    const subs = Array.from({ length: PAGE_SIZE }, (_, i) => ({ ...legacy, id: legacy.id + i }));
+    for (const t of [renderSubscriptionList(subs, unconfigured, 0).text, renderDeleteConfirm(legacy, 0).text]) {
+      assert.ok(parsedLength(t) <= TELEGRAM_TEXT_LIMIT, String(parsedLength(t)));
+    }
+  });
+
+  it("latest saved pending match is the last inserted, and status says scheduled", () => {
+    const s = sub(1, { pendingAsks: [ask(1, "Ep newer number"), ask(2, "Inserted last")] });
+    s.pendingAsks[0].episode = "12";
+    s.pendingAsks[1].episode = "03";
+    const { text } = renderSubscriptionDetails(s, configured, 0);
+    assert.match(text, /Latest saved pending match: ep 03/);
+    assert.match(text, /Inserted last/);
+    const w = renderSubscriptionDetails(sub(2), configured, 0).text;
+    assert.match(w, /scheduled every 15 min/);
+    assert.doesNotMatch(w, /checked every/);
+  });
+
+  it("unknown legacy provider label is escaped", () => {
+    const { text } = renderSubscriptionList([sub(1, { provider: "<evil>" as any })], configured, 0);
+    assert.match(text, /&lt;evil&gt;/);
   });
 });

@@ -131,16 +131,113 @@ describe("subscription flows (mocked Telegram API)", () => {
     assert.equal(alert.payload.show_alert, true);
   });
 
-  it("edit title through the conversation, with /cancel", async () => {
+  function lastConfirm(h: Awaited<ReturnType<typeof harness>>) {
+    const m = h.sent().filter((c) => /Save rename\?/.test(c.payload.text)).at(-1)!;
+    const btns = m.payload.reply_markup.inline_keyboard.flat().map((b: any) => b.callback_data as string);
+    return { yes: btns.find((d: string) => d.endsWith(":y"))!, no: btns.find((d: string) => d.endsWith(":n"))! };
+  }
+
+  it("rename warns first, needs explicit Save, keeps history", async () => {
+    const h = await harness(2);
+    h.store.addDownloadedEpisode(id(2), "01");
+    h.store.markSeen(id(2), "abc");
+    await h.tap(`s:et:${id(2)}`);
+    const warn = h.sent().at(-1)!.payload.text;
+    assert.match(warn, /same show/);
+    assert.match(warn, /Add instead/);
+    await h.text("Frieren & <Friends>");
+    assert.equal(h.store.getSubscription(id(2))!.animeName, "Show 2", "not saved before confirming");
+    const { yes } = lastConfirm(h);
+    assert.match(h.sent().at(-1)!.payload.text, /Frieren &amp; &lt;Friends&gt;/);
+    await h.tap(yes);
+    const s = h.store.getSubscription(id(2))!;
+    assert.equal(s.animeName, "Frieren & <Friends>");
+    assert.deepEqual(s.downloadedEpisodes, ["01"]);
+    assert.deepEqual(s.seenHashes, ["abc"]);
+    assert.match(h.sent().at(-1)!.payload.text, /Renamed/);
+  });
+
+  it("rename /cancel before text, and Cancel button / stray input at confirmation", async () => {
     const h = await harness(2);
     await h.tap(`s:et:${id(2)}`);
     await h.text("/cancel");
-    assert.equal(h.store.getSubscription(id(2))!.animeName, "Show 2");
-
+    assert.match(h.sent().at(-1)!.payload.text, /cancelled/);
     await h.tap(`s:et:${id(2)}`);
-    await h.text("Frieren & <Friends>");
-    assert.equal(h.store.getSubscription(id(2))!.animeName, "Frieren & <Friends>");
-    assert.match(h.sent().at(-1)!.payload.text, /Frieren &amp; &lt;Friends&gt;/);
+    await h.text("New Name");
+    const { no } = lastConfirm(h);
+    await h.tap("s:v:whatever:0"); // swallowed with a hint while confirming
+    await h.text("another title");
+    assert.match(h.sent().at(-1)!.payload.text, /Save rename or Cancel/);
+    await h.tap(no);
+    assert.equal(h.store.getSubscription(id(2))!.animeName, "Show 2");
+    await h.tap(`s:et:${id(2)}`);
+    await h.text("Again");
+    await h.text("/cancel");
+    assert.equal(h.store.getSubscription(id(2))!.animeName, "Show 2");
+  });
+
+  it("rename rejects commands, overlong, duplicate titles with limited retries", async () => {
+    const h = await harness(2);
+    await h.tap(`s:et:${id(2)}`);
+    await h.text("/start");
+    assert.match(h.sent().at(-1)!.payload.text, /Commands don't work here.*2 left/);
+    await h.text("🎌".repeat(201));
+    assert.match(h.sent().at(-1)!.payload.text, /longer than 200.*1 left/);
+    await h.text("<oshi no ko>"); // case-insensitive duplicate of sub 1
+    assert.match(h.sent().at(-1)!.payload.text, /Too many tries/);
+    assert.equal(h.store.getSubscription(id(2))!.animeName, "Show 2");
+    // exactly 200 code points is accepted
+    await h.tap(`s:et:${id(2)}`);
+    await h.text("🎌".repeat(200));
+    await h.tap(lastConfirm(h).yes);
+    assert.equal([...h.store.getSubscription(id(2))!.animeName].length, 200);
+  });
+
+  it("rename handles the subscription disappearing or a duplicate appearing before Save", async () => {
+    const h = await harness(3);
+    await h.tap(`s:et:${id(2)}`);
+    await h.text("Fresh");
+    h.store.removeSubscription(id(2));
+    await h.tap(lastConfirm(h).yes);
+    assert.match(h.sent().at(-1)!.payload.text, /no longer exists/);
+    assert.equal(h.store.listSubscriptions().length, 2);
+
+    await h.tap(`s:et:${id(3)}`);
+    await h.text("Dupe");
+    h.store.updateSubscription(id(1), { animeName: "dupe" });
+    await h.tap(lastConfirm(h).yes);
+    assert.match(h.sent().at(-1)!.payload.text, /appeared meanwhile/);
+    assert.equal(h.store.getSubscription(id(3))!.animeName, "Show 3");
+
+    await h.tap(`s:et:${id(9)}`);
+    assert.match(h.calls.filter((c) => c.method === "answerCallbackQuery").at(-1)!.payload.text, /no longer exists/);
+  });
+
+  it("provider callbacks reject prototype keys", async () => {
+    const h = await harness(1);
+    for (const bad of ["__proto__", "constructor", "toString", "hasOwnProperty"]) {
+      await h.tap(`s:sp:${id(1)}:${bad}:0`);
+      assert.equal(h.store.getSubscription(id(1))!.provider, "subsplease");
+      assert.match(h.calls.filter((c) => c.method === "answerCallbackQuery").at(-1)!.payload.text, /Unknown option/);
+    }
+    await h.tap(`s:sr:${id(1)}:constructor:0`);
+    assert.equal(h.store.getSubscription(id(1))!.resolution, "1080p");
+  });
+
+  it("Store.updateSubscription only allows validated title/provider/resolution", async () => {
+    const h = await harness(1);
+    const s = h.store;
+    assert.throws(() => s.updateSubscription(id(1), { downloadedEpisodes: [] } as any), /not editable/);
+    assert.throws(() => s.updateSubscription(id(1), { id: "x" } as any), /not editable/);
+    assert.throws(() => s.updateSubscription(id(1), JSON.parse('{"__proto__":{"x":1}}')), /not editable/);
+    assert.throws(() => s.updateSubscription(id(1), { provider: "__proto__" as any }), /invalid provider/);
+    assert.throws(() => s.updateSubscription(id(1), { resolution: "4k" as any }), /invalid resolution/);
+    assert.throws(() => s.updateSubscription(id(1), { animeName: "   " }), /invalid title/);
+    assert.throws(() => s.updateSubscription(id(1), { animeName: "/start" }), /invalid title/);
+    assert.throws(() => s.updateSubscription(id(1), { animeName: "x".repeat(201) }), /invalid title/);
+    assert.equal(s.updateSubscription(id(1), { animeName: "  Spaced   Out " })!.animeName, "Spaced Out");
+    assert.equal(s.updateSubscription(id(99), { resolution: "720p" }), undefined);
+    assert.equal(s.getSubscription(id(1))!.provider, "subsplease");
   });
 
   it("menus render as HTML; settings escapes the downloader URL", async () => {
