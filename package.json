@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "esbuild src/index.ts --bundle --platform=node --target=node20 --format=esm --packages=external --outfile=dist/bot.js",
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node24 --format=esm --packages=external --outfile=dist/bot.js",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test test/**/*.test.ts",
     "dev": "tsx src/index.ts",
@@ -19,5 +19,8 @@
     "esbuild": "^0.20.0",
     "tsx": "^4.7.0",
     "typescript": "^5.4.0"
+  },
+  "engines": {
+    "node": ">=24.22.1 <25"
   }
 }
